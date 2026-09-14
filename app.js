@@ -5,6 +5,90 @@
  * - Vermelho suave = Não marcada / Pendente
  */
 
+// =========================================================================
+// UTILITÁRIOS DE SEGURANÇA (DEFESA CONTRA XSS & CSRF)
+// =========================================================================
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+let currentCsrfToken = '';
+
+// Sincronização segura de identidade e perfil através de cookies HttpOnly
+async function syncSessionWithBackend() {
+    try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.csrfToken) {
+                currentCsrfToken = data.csrfToken;
+            }
+            if (data.authenticated && data.user) {
+                applyBackendSessionUser(data.user, data.csrfToken);
+                return true;
+            }
+        }
+    } catch (err) {
+        console.warn('Não foi possível sincronizar sessão segura com o servidor:', err);
+    }
+    return false;
+}
+
+function applyBackendSessionUser(user, csrf) {
+    if (!user) return;
+    if (csrf) currentCsrfToken = csrf;
+
+    googleAuthState = {
+        isLoggedIn: true,
+        userType: user.userType || 'patient',
+        email: user.email,
+        name: user.name,
+        avatar: user.picture || (user.userType === 'professional' ? '🩺' : '👤'),
+        roleTag: user.userType === 'professional' ? `${user.councilType}/${user.councilUf} ${user.councilNumber}` : 'Paciente Cadastrado',
+        councilType: user.councilType || '',
+        councilUf: user.councilUf || '',
+        councilNumber: user.councilNumber || '',
+        cpf: user.cpf || '',
+        companyName: user.companyName || '',
+        companyCnpj: user.companyCnpj || '',
+        birthDate: user.birthDate || '',
+        referralCode: user.referralCode || '',
+        bonusMonths: user.bonusMonths || 0,
+        isPro: Boolean(user.isPro),
+        subscriptionExpiresAt: user.subscriptionExpiresAt || '',
+        digitalSignature: user.digitalSignature || ''
+    };
+
+    if (user.userType === 'professional') {
+        userSessionData.role = 'professional';
+        userSessionData.professionalName = user.name;
+        userSessionData.professionalCpf = user.cpf || '';
+        userSessionData.councilType = user.councilType || 'CRF';
+        userSessionData.councilUf = user.councilUf || 'RJ';
+        userSessionData.councilNumber = user.councilNumber || '';
+        if (user.companyName) userSessionData.companyName = user.companyName;
+        if (user.companyCnpj) userSessionData.companyCnpj = user.companyCnpj;
+        if (user.digitalSignature) userSessionData.digitalSignature = user.digitalSignature;
+    } else {
+        userSessionData.patientName = user.name;
+        userSessionData.patientCpf = user.cpf || '';
+        userSessionData.patientBirth = user.birthDate || '';
+    }
+
+    if (typeof updateGoogleAuthUI === 'function') {
+        updateGoogleAuthUI();
+    }
+    if (typeof saveGoogleAuthState === 'function') {
+        saveGoogleAuthState();
+    }
+}
+
 // Banco de Dados Oficial Estruturado em Marcos Cronológicos SBIm
 const SBIM_CALENDAR_DATA = {
     // =========================================================================
@@ -3352,7 +3436,16 @@ function renderPrescriptionPaper() {
     }
 
     const isClinic = userSessionData.role === 'clinic';
-    const prescriberRegistration = `${userSessionData.councilType}/${userSessionData.councilUf} ${userSessionData.councilNumber}`;
+    const prescriberRegistration = `${escapeHtml(userSessionData.councilType)}/${escapeHtml(userSessionData.councilUf)} ${escapeHtml(userSessionData.councilNumber)}`;
+    const safeCompanyName = escapeHtml(userSessionData.companyName || '');
+    const safeCompanyCnpj = escapeHtml(userSessionData.companyCnpj || '');
+    const safeProfName = escapeHtml(userSessionData.professionalName || '');
+    const safeProfCpf = escapeHtml(userSessionData.professionalCpf || '');
+    const safePatientName = escapeHtml(userSessionData.patientName || '');
+    const safePatientBirth = escapeHtml(userSessionData.patientBirth || '-');
+    const safePatientAge = escapeHtml(userSessionData.patientAge || '');
+    const safePatientCpf = escapeHtml(userSessionData.patientCpf || 'Não informado');
+    const safeComorbText = escapeHtml(comorbText);
 
     container.innerHTML = `
         <div id="prescription-paper" class="bg-white rounded-2xl border border-slate-300 shadow-md p-8 sm:p-12 max-w-4xl mx-auto print:border-none print:shadow-none print:p-0 print:m-0 text-slate-900 font-sans">
@@ -3372,13 +3465,13 @@ function renderPrescriptionPaper() {
                 </div>
                 <div class="text-left sm:text-right text-xs text-slate-700">
                     ${isClinic ? `
-                        <span class="font-extrabold text-sm block">${userSessionData.companyName}</span>
-                        <span class="text-slate-600 block">CNPJ: ${userSessionData.companyCnpj}</span>
+                        <span class="font-extrabold text-sm block">${safeCompanyName}</span>
+                        <span class="text-slate-600 block">CNPJ: ${safeCompanyCnpj}</span>
                         <span class="text-emerald-800 font-semibold block text-[11px]">Serviço de Vacinação Habilitado</span>
                     ` : `
-                        <span class="font-extrabold text-sm block">Dr(a). ${userSessionData.professionalName}</span>
+                        <span class="font-extrabold text-sm block">Dr(a). ${safeProfName}</span>
                         <span class="text-slate-600 block">${prescriberRegistration}</span>
-                        <span class="text-slate-500 block text-[11px]">CPF: ${userSessionData.professionalCpf}</span>
+                        <span class="text-slate-500 block text-[11px]">CPF: ${safeProfCpf}</span>
                     `}
                 </div>
             </div>
@@ -3386,16 +3479,16 @@ function renderPrescriptionPaper() {
             <div class="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 text-xs">
                 <div>
                     <span class="text-slate-500 uppercase tracking-wider text-[10px] font-bold block">Dados do Paciente:</span>
-                    <p class="font-bold text-sm text-slate-950 mt-0.5">${userSessionData.patientName}</p>
-                    <p class="text-slate-700">Data de Nascimento / Idade: <span class="font-semibold">${userSessionData.patientBirth || '-'}</span> (${userSessionData.patientAge})</p>
-                    <p class="text-slate-700">Documento / CPF: <span class="font-semibold">${userSessionData.patientCpf || 'Não informado'}</span></p>
-                    ${comorbText ? `<p class="text-slate-700 mt-1"><span class="font-bold text-emerald-800">Condições Clínicas:</span> ${comorbText}</p>` : ''}
+                    <p class="font-bold text-sm text-slate-950 mt-0.5">${safePatientName}</p>
+                    <p class="text-slate-700">Data de Nascimento / Idade: <span class="font-semibold">${safePatientBirth}</span> (${safePatientAge})</p>
+                    <p class="text-slate-700">Documento / CPF: <span class="font-semibold">${safePatientCpf}</span></p>
+                    ${safeComorbText ? `<p class="text-slate-700 mt-1"><span class="font-bold text-emerald-800">Condições Clínicas:</span> ${safeComorbText}</p>` : ''}
                 </div>
                 <div>
                     <span class="text-slate-500 uppercase tracking-wider text-[10px] font-bold block">Profissional Prescritor Habilitado:</span>
-                    <p class="font-bold text-sm text-slate-950 mt-0.5">Dr(a). ${userSessionData.professionalName}</p>
+                    <p class="font-bold text-sm text-slate-950 mt-0.5">Dr(a). ${safeProfName}</p>
                     <p class="text-slate-700">Registro Profissional: <span class="font-bold text-emerald-800">${prescriberRegistration}</span></p>
-                    <p class="text-slate-700">CPF do Prescritor: <span class="font-semibold">${userSessionData.professionalCpf}</span></p>
+                    <p class="text-slate-700">CPF do Prescritor: <span class="font-semibold">${safeProfCpf}</span></p>
                     <p class="text-slate-700">Data da Prescrição: <span class="font-semibold">${today}</span></p>
                 </div>
             </div>
@@ -3438,14 +3531,14 @@ function renderPrescriptionPaper() {
                 <div class="text-center sm:text-right min-w-[240px] flex flex-col items-center sm:items-end">
                     ${(userSessionData.digitalSignature || googleAuthState.digitalSignature) ? `
                         <div class="mb-1 flex flex-col items-center sm:items-end">
-                            <img src="${userSessionData.digitalSignature || googleAuthState.digitalSignature}" alt="Assinatura Digital Dr(a). ${userSessionData.professionalName}" class="h-12 max-w-[200px] object-contain" />
+                            <img src="${(userSessionData.digitalSignature || googleAuthState.digitalSignature).startsWith('data:image/') ? (userSessionData.digitalSignature || googleAuthState.digitalSignature) : ''}" alt="Assinatura Digital Dr(a). ${safeProfName}" class="h-12 max-w-[200px] object-contain" />
                             <span class="text-[9px] text-emerald-800 font-bold tracking-wider">ASSINATURA DIGITAL REGISTRADA</span>
                         </div>
                     ` : `
                         <div class="h-8"></div>
                     `}
-                    <div class="border-b border-slate-400 pb-1 mb-1 font-bold text-slate-950 w-full text-center sm:text-right">Dr(a). ${userSessionData.professionalName}</div>
-                    <span class="text-slate-600 block text-[11px]">${prescriberRegistration} • CPF: ${userSessionData.professionalCpf}</span>
+                    <div class="border-b border-slate-400 pb-1 mb-1 font-bold text-slate-950 w-full text-center sm:text-right">Dr(a). ${safeProfName}</div>
+                    <span class="text-slate-600 block text-[11px]">${prescriberRegistration} • CPF: ${safeProfCpf}</span>
                 </div>
             </div>
         </div>
@@ -3875,12 +3968,14 @@ function checkOAuthHashTokens() {
     // Se estiver em uma janela popup aberta pelo site
     if (window.opener && window.opener !== window) {
         try {
+            // Defesa contra vazamento de tokens: restringe postMessage à origem do próprio site
+            const targetOrigin = window.location.origin;
             window.opener.postMessage({
                 type: 'OAUTH_AUTH_SUCCESS',
                 idToken: idToken,
                 accessToken: accessToken,
                 error: error
-            }, '*');
+            }, targetOrigin);
             window.close();
             return true;
         } catch (e) {
@@ -3920,13 +4015,25 @@ async function initGoogleAuth() {
     // Inicializar Google Identity Services (GIS) caso a biblioteca esteja pronta
     setupGoogleIdentityServices();
 
-    // Listener para mensagens da janela popup OAuth (/auth/callback)
-    window.addEventListener('message', (event) => {
-        if (!event.data) return;
+    // Listener para mensagens da janela popup OAuth (/auth/callback) com ORIGEM ESTRITA
+    window.addEventListener('message', async (event) => {
+        const allowedOrigins = [
+            window.location.origin,
+            'https://vacinas.walacemendes.com.br'
+        ];
+        const isPreviewHost = event.origin && (event.origin.includes('.run.app') || event.origin.includes('googleusercontent.com'));
+        if (!allowedOrigins.includes(event.origin) && !isPreviewHost) {
+            return; // Bloqueia postMessage de origens não autorizadas
+        }
+        if (!event.data || typeof event.data !== 'object') return;
         if (event.data.type === 'OAUTH_AUTH_SUCCESS') {
-            handleOAuthPopupCallbackSuccess(event.data);
+            await syncSessionWithBackend();
+            closeGoogleSignInModal();
         }
     });
+
+    // Sincronizar sessão ativa no backend (HttpOnly Cookie)
+    await syncSessionWithBackend();
 
     // Verificar se usuário acessou por link de indicação
     checkPendingReferral();
@@ -3977,10 +4084,28 @@ function setupGoogleIdentityServices() {
     }
 }
 
-function handleGoogleCredentialResponse(response) {
+async function handleGoogleCredentialResponse(response) {
     if (!response || !response.credential) {
         console.warn('Resposta de credencial Google vazia.');
         return;
+    }
+
+    try {
+        const res = await fetch('/api/auth/google/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential: response.credential })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.user) {
+                applyBackendSessionUser(data.user, data.csrfToken);
+                closeGoogleSignInModal();
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn('Erro ao verificar credencial no servidor:', e);
     }
 
     const payload = parseJwt(response.credential);
@@ -4141,13 +4266,37 @@ function showGoogleOriginNotice() {
     }
 }
 
-function openGoogleDirectAuthPopup() {
+async function openGoogleDirectAuthPopup() {
+    try {
+        const resp = await fetch('/api/auth/google/url');
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.url) {
+                const width = 500;
+                const height = 620;
+                const left = Math.max(0, Math.round((window.screen.width - width) / 2));
+                const top = Math.max(0, Math.round((window.screen.height - height) / 2));
+
+                const popup = window.open(
+                    data.url,
+                    'google_oauth_authorizer',
+                    `width=${width},height=${height},top=${top},left=${left},menubar=no,status=no,toolbar=no,scrollbars=yes,resizable=yes`
+                );
+
+                if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+                    window.location.href = data.url;
+                }
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn('Falha ao obter URL OAuth PKCE do backend:', e);
+    }
+
+    // Fallback padrão se offline
     const clientId = googleClientId || DEFAULT_GOOGLE_CLIENT_ID;
-    
-    // Obter URL base limpa para o redirect_uri
     const cleanPath = window.location.pathname.replace(/\/index\.html$/, '') || '/';
     const redirectUri = window.location.origin + cleanPath;
-
     const params = new URLSearchParams({
         client_id: clientId,
         redirect_uri: redirectUri,
@@ -4156,82 +4305,17 @@ function openGoogleDirectAuthPopup() {
         prompt: 'select_account',
         nonce: Date.now().toString()
     });
-
-    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-
-    const width = 500;
-    const height = 620;
-    const left = Math.max(0, Math.round((window.screen.width - width) / 2));
-    const top = Math.max(0, Math.round((window.screen.height - height) / 2));
-
-    const popup = window.open(
-        googleAuthUrl,
-        'google_oauth_authorizer',
-        `width=${width},height=${height},top=${top},left=${left},menubar=no,status=no,toolbar=no,scrollbars=yes,resizable=yes`
-    );
-
-    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        // Se popup foi bloqueado pelo navegador, redireciona diretamente na mesma janela
-        window.location.href = googleAuthUrl;
-    }
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
 function triggerGoogleLoginFlow() {
-    const clientId = googleClientId || DEFAULT_GOOGLE_CLIENT_ID;
-
-    // 1. Tentar OAuth2 Token Client client-side se o SDK do Google já estiver carregado
-    if (window.google && window.google.accounts && window.google.accounts.oauth2) {
-        try {
-            const tokenClient = window.google.accounts.oauth2.initTokenClient({
-                client_id: clientId,
-                scope: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid',
-                prompt: 'select_account',
-                callback: async (tokenResponse) => {
-                    if (tokenResponse && tokenResponse.error) {
-                        console.warn('Google OAuth Token error:', tokenResponse.error);
-                        if (tokenResponse.error !== 'access_denied') {
-                            openGoogleDirectAuthPopup();
-                        }
-                        return;
-                    }
-                    if (tokenResponse && tokenResponse.access_token) {
-                        try {
-                            const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                                headers: { 'Authorization': `Bearer ${tokenResponse.access_token}` }
-                            });
-                            const profile = await res.json();
-                            if (profile && profile.email) {
-                                processVerifiedGoogleIdentity(
-                                    profile.email,
-                                    profile.name || profile.given_name || profile.email.split('@')[0],
-                                    profile.picture || ''
-                                );
-                                return;
-                            }
-                        } catch (err) {
-                            console.warn('Erro ao consultar perfil Google:', err);
-                        }
-                    }
-                },
-                error_callback: (err) => {
-                    console.warn('Erro no GIS Token Client, abrindo autorizador direto:', err);
-                    openGoogleDirectAuthPopup();
-                }
-            });
-            tokenClient.requestAccessToken({ prompt: 'select_account' });
-            return;
-        } catch (e) {
-            console.warn('Erro ao disparar initTokenClient, usando autorizador direto:', e);
-        }
-    }
-
-    // 2. Abrir imediatamente a janela do Autorizador Oficial do Google (sempre abre a janela de login)
+    // Abre autorizador seguro com PKCE
     openGoogleDirectAuthPopup();
 }
 
 function fillDemoGoogleAccount() {
-    const demoEmail = 'lacee.mds@gmail.com';
-    const demoName = 'Dr. Walace Mendes dos Santos';
+    const demoEmail = 'prescritor.demo@guiadavacina.com.br';
+    const demoName = 'Dr(a). Prescritor Demonstração';
 
     tempGoogleAuthData = {
         email: demoEmail,
@@ -4245,15 +4329,15 @@ function fillDemoGoogleAccount() {
         email: demoEmail,
         name: demoName,
         avatar: '🩺',
-        roleTag: 'CRF/RJ 12345',
+        roleTag: 'CRF/RJ 00000',
         councilType: 'CRF',
         councilUf: 'RJ',
-        councilNumber: '12345',
-        cpf: '118.002.337-44',
-        companyName: 'Consultório Farmacêutico Guia da Vacina',
-        companyCnpj: '11.800.233/0001-44',
+        councilNumber: '00000',
+        cpf: '000.000.000-00',
+        companyName: 'Consultório Farmacêutico Demonstração',
+        companyCnpj: '00.000.000/0001-00',
         birthDate: '',
-        referralCode: 'walace12',
+        referralCode: 'demo2026',
         bonusMonths: 1,
         subscriptionExpiresAt: ''
     };
@@ -4267,11 +4351,11 @@ function fillDemoGoogleAccount() {
             name: demoName,
             councilType: 'CRF',
             councilUf: 'RJ',
-            councilNumber: '12345',
-            cpf: '118.002.337-44',
-            companyName: 'Consultório Farmacêutico Guia da Vacina',
-            companyCnpj: '11.800.233/0001-44',
-            referralCode: 'walace12',
+            councilNumber: '00000',
+            cpf: '000.000.000-00',
+            companyName: 'Consultório Farmacêutico Demonstração',
+            companyCnpj: '00.000.000/0001-00',
+            referralCode: 'demo2026',
             bonusMonths: 1
         };
         localStorage.setItem(PRESCRIBERS_REGISTRY_KEY, JSON.stringify(registry));
@@ -4921,7 +5005,13 @@ function syncGoogleDataToPrescriptionForm() {
     if (googleAuthState.digitalSignature) userSessionData.digitalSignature = googleAuthState.digitalSignature;
 }
 
-function triggerGoogleLogout() {
+async function triggerGoogleLogout() {
+    try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+        console.warn('Erro ao chamar logout no servidor:', e);
+    }
+
     googleAuthState = {
         isLoggedIn: false,
         userType: 'professional',
@@ -5258,6 +5348,25 @@ function savePrescriptionToHistory(record) {
         // Atualiza também a base de pacientes atendidos
         updatePatientHistoryRecord(record);
         updateHistoryCounters();
+
+        // Sincroniza de forma segura com o backend se profissional logado
+        if (googleAuthState && googleAuthState.isLoggedIn) {
+            fetch('/api/prescriptions/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': currentCsrfToken
+                },
+                body: JSON.stringify({
+                    patientName: record.patientName,
+                    patientCpf: record.patientCpf,
+                    patientAge: record.patientAge,
+                    patientBirth: record.patientBirth,
+                    vaccines: record.vaccines,
+                    comorbidities: record.comorbidities
+                })
+            }).catch(e => console.warn('Erro ao sincronizar prescrição com servidor:', e));
+        }
     } catch (e) {
         console.warn('Erro ao salvar prescrição no histórico:', e);
     }
@@ -5435,18 +5544,19 @@ function renderPrescriptionsHistory(filterQuery = '') {
     }
 
     listEl.innerHTML = items.map(item => {
-        const vacTags = (item.vaccines || []).map(v => `<span class="history-vac-tag">${v.nome}</span>`).join('');
+        const vacTags = (item.vaccines || []).map(v => `<span class="history-vac-tag">${escapeHtml(v.nome)}</span>`).join('');
         const maskedCpf = item.patientCpf ? maskCpfForDisplay(item.patientCpf) : 'Não informado';
+        const safeId = escapeHtml(item.id);
 
         return `
             <div class="history-card-item">
                 <div class="history-card-header">
                     <div>
-                        <strong class="history-patient-name">${item.patientName}</strong>
-                        <span class="history-meta-sub">${item.patientAge} • CPF: ${maskedCpf}</span>
+                        <strong class="history-patient-name">${escapeHtml(item.patientName)}</strong>
+                        <span class="history-meta-sub">${escapeHtml(item.patientAge)} • CPF: ${escapeHtml(maskedCpf)}</span>
                     </div>
                     <div class="history-time-badge">
-                        <span>🕒 ${item.formattedDate}</span>
+                        <span>🕒 ${escapeHtml(item.formattedDate)}</span>
                     </div>
                 </div>
 
@@ -5456,10 +5566,10 @@ function renderPrescriptionsHistory(filterQuery = '') {
                 </div>
 
                 <div class="history-card-footer">
-                    <span class="history-prescriber-info">Prescritor: Dr(a). ${item.prescriberName} (${item.councilType}/${item.councilUf} ${item.councilNumber})</span>
+                    <span class="history-prescriber-info">Prescritor: Dr(a). ${escapeHtml(item.prescriberName)} (${escapeHtml(item.councilType)}/${escapeHtml(item.councilUf)} ${escapeHtml(item.councilNumber)})</span>
                     <div class="history-actions-row">
-                        <button class="btn-history-reopen" onclick="reopenPrescriptionFromHistory('${item.id}')">📄 Ver / Reimprimir</button>
-                        <button class="btn-history-delete" onclick="deletePrescriptionFromHistory('${item.id}')" title="Excluir do histórico">🗑️</button>
+                        <button class="btn-history-reopen" onclick="reopenPrescriptionFromHistory('${safeId}')">📄 Ver / Reimprimir</button>
+                        <button class="btn-history-delete" onclick="deletePrescriptionFromHistory('${safeId}')" title="Excluir do histórico">🗑️</button>
                     </div>
                 </div>
             </div>
@@ -5491,21 +5601,23 @@ function renderPatientsHistory(filterQuery = '') {
     listEl.innerHTML = items.map(p => {
         const maskedCpf = p.cpf ? maskCpfForDisplay(p.cpf) : 'Não informado';
         const comorbList = (p.comorbidities && p.comorbidities.length > 0) ? p.comorbidities.join(', ') : 'Rotina';
+        const safeName = escapeHtml(p.name);
+        const encodedName = encodeURIComponent(p.name);
 
         return `
             <div class="history-patient-row">
                 <div class="patient-main-info">
                     <span class="patient-avatar-icon">👤</span>
                     <div>
-                        <strong class="patient-title">${p.name}</strong>
-                        <span class="patient-meta">${p.age} • CPF: ${maskedCpf}</span>
-                        <span class="patient-comorb-tag">Condições: ${comorbList}</span>
+                        <strong class="patient-title">${safeName}</strong>
+                        <span class="patient-meta">${escapeHtml(p.age)} • CPF: ${escapeHtml(maskedCpf)}</span>
+                        <span class="patient-comorb-tag">Condições: ${escapeHtml(comorbList)}</span>
                     </div>
                 </div>
                 <div class="patient-stats">
-                    <span class="patient-presc-badge">📑 ${p.totalPrescriptions} Prescrição(ões)</span>
-                    <span class="patient-last-visit">Último: ${p.lastVisit}</span>
-                    <button class="btn-patient-new-consult" onclick="startNewConsultationForPatient('${p.name}')">➕ Novo Atendimento</button>
+                    <span class="patient-presc-badge">📑 ${escapeHtml(p.totalPrescriptions)} Prescrição(ões)</span>
+                    <span class="patient-last-visit">Último: ${escapeHtml(p.lastVisit)}</span>
+                    <button class="btn-patient-new-consult" onclick="startNewConsultationForPatient(decodeURIComponent('${encodedName}'))">➕ Novo Atendimento</button>
                 </div>
             </div>
         `;
@@ -5618,18 +5730,80 @@ function handleLegalModalBackdropClick(e, modalId) {
 
 // Checkout PagBank
 let currentPagBankService = 'prescricao';
+let currentPagBankOrderId = null;
+let pagBankPollingTimer = null;
 
-function openPagBankCheckoutModal() {
+async function requestPagBankOrder(serviceType, method) {
+    try {
+        const resp = await fetch('/api/pagbank/orders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': currentCsrfToken
+            },
+            body: JSON.stringify({
+                serviceType: serviceType,
+                paymentMethod: method
+            })
+        });
+
+        if (resp.ok) {
+            const data = await resp.json();
+            currentPagBankOrderId = data.id;
+
+            if (method === 'PIX' && data.qr_codes && data.qr_codes[0]) {
+                const input = document.getElementById('pixCopiaColaInput');
+                if (input) input.value = data.qr_codes[0].text;
+            }
+
+            // Inicia checagem periódica do status oficial do pedido no backend
+            startPagBankStatusPolling(data.id);
+            return data;
+        }
+    } catch (e) {
+        console.warn('Erro ao solicitar pedido ao backend:', e);
+    }
+    return null;
+}
+
+function startPagBankStatusPolling(orderId) {
+    if (pagBankPollingTimer) clearInterval(pagBankPollingTimer);
+    if (!orderId) return;
+
+    pagBankPollingTimer = setInterval(async () => {
+        try {
+            const resp = await fetch(`/api/pagbank/order-status/${orderId}`);
+            if (resp.ok) {
+                const info = await resp.json();
+                if (info.status === 'PAID') {
+                    clearInterval(pagBankPollingTimer);
+                    alert('✓ Pagamento confirmado com sucesso pelo PagBank! Acesso PRO liberado.');
+                    await syncSessionWithBackend();
+                    closePagBankCheckoutModal();
+                }
+            }
+        } catch (e) {
+            // Silencioso no polling
+        }
+    }, 4000);
+}
+
+async function openPagBankCheckoutModal() {
     const modal = document.getElementById('pagbankCheckoutModal');
     if (modal) {
         selectPagBankService('prescricao');
         switchPagBankPaymentMethod('pix');
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
+        await requestPagBankOrder('prescricao', 'PIX');
     }
 }
 
 function closePagBankCheckoutModal() {
+    if (pagBankPollingTimer) {
+        clearInterval(pagBankPollingTimer);
+        pagBankPollingTimer = null;
+    }
     const modal = document.getElementById('pagbankCheckoutModal');
     if (modal) {
         modal.classList.remove('active');
@@ -5674,6 +5848,9 @@ function selectPagBankService(type) {
             `;
         }
     }
+
+    // Atualiza o pedido PIX para o novo valor selecionado
+    requestPagBankOrder(type, 'PIX');
 }
 
 function switchPagBankPaymentMethod(method) {
@@ -5735,7 +5912,7 @@ function formatCardExpiry(el) {
     el.value = v;
 }
 
-function handlePagBankCardSubmit(e) {
+async function handlePagBankCardSubmit(e) {
     if (e) e.preventDefault();
     const btn = document.getElementById('btnPayCard');
     const prevText = btn ? btn.textContent : '';
@@ -5744,14 +5921,36 @@ function handlePagBankCardSubmit(e) {
         btn.textContent = '⏳ Processando com PagBank...';
     }
 
-    setTimeout(() => {
+    try {
+        const resp = await fetch('/api/pagbank/orders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': currentCsrfToken
+            },
+            body: JSON.stringify({
+                serviceType: currentPagBankService,
+                paymentMethod: 'CREDIT_CARD'
+            })
+        });
+
+        const data = await resp.json();
+        if (resp.ok) {
+            currentPagBankOrderId = data.id;
+            startPagBankStatusPolling(data.id);
+            alert('✓ Pedido registrado com sucesso no gateway PagBank! O status atual é "' + (data.status || 'AGUARDANDO PAGAMENTO') + '". A ativação PRO ocorrerá após a confirmação oficial pelo provedor.');
+            closePagBankCheckoutModal();
+        } else {
+            alert(data.error || 'Não foi possível processar o pagamento no momento.');
+        }
+    } catch (err) {
+        alert('Erro de conexão ao processar pedido PagBank. Tente novamente.');
+    } finally {
         if (btn) {
             btn.disabled = false;
             btn.textContent = prevText;
         }
-        alert('✓ Pedido PagBank processado com sucesso em ambiente seguro! O comprovante foi encaminhado para seu e-mail.');
-        closePagBankCheckoutModal();
-    }, 1500);
+    }
 }
 
 // =========================================================================

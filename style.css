@@ -1360,21 +1360,154 @@ body.light-theme .welcome-title strong {
     color: var(--text-muted);
 }
 
-/* Responsividade para Telas Menores */
+/* Responsividade para Telas Menores (Estrutura Básica de Telas) */
 @media (max-width: 768px) {
-    #screen-profiles.active {
-        height: auto;
+    .main-container {
+        padding: 0.5rem 0.65rem;
+        overflow-x: hidden;
         overflow-y: auto;
+        width: 100%;
+        max-width: 100vw;
+        box-sizing: border-box;
     }
 
+    #screen-profiles.active {
+        height: auto;
+        min-height: 100%;
+        overflow-y: visible;
+        overflow-x: hidden;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .welcome-bar {
+        margin: 0.4rem 0 0.8rem 0;
+    }
+
+    .welcome-title {
+        font-size: clamp(1.8rem, 6vw, 2.4rem);
+    }
+
+    /* Grid de Perfis: Perfeito alinhamento mobile em 1 coluna, sem overflow */
     .profiles-grid-2x2 {
+        display: grid;
         grid-template-columns: 1fr;
         grid-template-rows: auto;
         height: auto;
+        width: 100%;
+        max-width: 100%;
+        gap: 0.75rem;
+        box-sizing: border-box;
+    }
+
+    .profile-card {
+        min-height: 140px;
+        padding: 1rem 1.1rem;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 100%;
+        touch-action: manipulation;
+    }
+
+    .btn-select-profile {
+        min-height: 44px;
+        padding: 0.65rem 1rem;
+        font-size: 0.88rem;
+        box-sizing: border-box;
+    }
+
+    /* Matriz do Calendário: Perfeito alinhamento mobile sem overflow horizontal */
+    #screen-vaccines.active {
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    .compact-top-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.65rem;
+        padding: 0.6rem 0.75rem;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .top-bar-left {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .btn-back-compact {
+        min-height: 44px;
+        padding: 0.5rem 0.85rem;
+    }
+
+    .triage-status-bar {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .btn-quick-triage {
+        min-height: 38px;
+        padding: 0.4rem 0.65rem;
+    }
+
+    .calendar-hint-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.45rem;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .calendar-matrix-board {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+        gap: 0.55rem;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .matrix-milestone-col {
+        width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    .mini-vac-card {
+        min-height: 52px;
+        padding: 0.55rem 0.65rem;
+        box-sizing: border-box;
+        touch-action: manipulation;
+    }
+
+    .mini-vac-name {
+        font-size: 0.84rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-container {
+        padding: 0.4rem 0.5rem;
+    }
+
+    .calendar-matrix-board {
+        grid-template-columns: 1fr;
+        gap: 0.65rem;
+    }
+
+    .profile-avatar {
+        width: 42px;
+        height: 42px;
+        font-size: 1.35rem;
+    }
+
+    .mini-vac-card {
+        min-height: 56px;
+        padding: 0.6rem 0.7rem;
     }
 }
 
@@ -2562,20 +2695,359 @@ body.light-theme .poster-card-phase-tag {
     }
 }
 
-/* Apenas em Mobile (< 768px) é permitido quebrar */
-@media (max-width: 768px) {
+/* ==========================================================================
+   LAYOUT RESPONSIVO MOBILE: ALINHAMENTO PERFEITO, ZERO OVERFLOW & TOUCH TARGETS
+   Preserva 100% da estrutura desktop original e otimiza mobile (< 768px)
+   ========================================================================== */
+
+/* Regra Desktop Estrita: Mantém 5 colunas rígidas em linha única no Desktop */
+@media (min-width: 769px) {
     .profiles-cards-container {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
-        padding: 0.5rem;
+        grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+        padding: 0.5rem 1.25rem;
     }
 }
 
-@media (max-width: 480px) {
+/* Otimização Mobile (< 768px): Alinhamento idêntico entre Perfil e Matriz, Zero Overflow */
+@media (max-width: 768px) {
+    /* 1. Container Principal: Margens uniformes, rolagem vertical suave e contenção horizontal */
+    .main-container {
+        width: 100%;
+        max-width: 100vw;
+        box-sizing: border-box;
+        padding: 0.45rem 0.85rem 2rem 0.85rem !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        height: auto;
+        min-height: calc(100vh - 65px);
+    }
+
+    /* Assegura que as telas preencham a largura sem causar overflow */
+    #screen-profiles.active,
+    #screen-vaccines.active,
+    #screen-comorbidities.active {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden !important;
+        height: auto;
+        min-height: 100%;
+        justify-content: flex-start;
+    }
+
+    /* Barra de título do topo ajustada para mobile */
+    .welcome-bar {
+        margin: 0.35rem 0 0.85rem 0;
+        width: 100%;
+        padding: 0;
+    }
+
+    .welcome-title {
+        font-size: clamp(1.3rem, 4.8vw, 1.8rem);
+        line-height: 1.2;
+        letter-spacing: -0.3px;
+        text-align: center;
+        max-width: 100%;
+        word-break: break-word;
+    }
+
+    /* 2. Grid de Cards de Perfil (Profile Cards Grid) no Mobile: Alinhamento perfeito com a Matriz */
     .profiles-cards-container {
-        grid-template-columns: 1fr;
-        max-width: 320px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+        width: 100%;
+        max-width: 100%;
         margin: 0 auto;
+        padding: 0.15rem 0 1.25rem 0;
+        box-sizing: border-box;
+        align-items: stretch;
+    }
+
+    .profile-poster-card {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        aspect-ratio: 3 / 4;
+        min-height: 160px;
+        max-height: 250px;
+        border-radius: var(--radius-md);
+        touch-action: manipulation;
+    }
+
+    .profile-poster-card:active {
+        transform: scale(0.97);
+    }
+
+    /* O 5º Card (Pessoa Idosa) ocupa as 2 colunas de forma simétrica e elegante (2-2-1) */
+    .profile-poster-card:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+        aspect-ratio: 16 / 7.5;
+        min-height: 115px;
+        max-height: 150px;
+    }
+
+    .poster-card-bottom {
+        padding: 0.75rem 0.6rem 0.65rem 0.6rem;
+    }
+
+    .poster-card-title {
+        font-size: clamp(0.9rem, 3.2vw, 1.1rem);
+        line-height: 1.25;
+        letter-spacing: -0.2px;
+    }
+
+    /* 3. Matriz do Calendário (Calendar Matrix) no Mobile: Alinhamento milimétrico com o Grid de Perfis */
+    .calendar-matrix-board {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0.15rem 0 6rem 0;
+        gap: 0.85rem;
+    }
+
+    /* Modo Spacious (Adulto, Gestante, Idoso) em Mobile: Coluna única ou 2 colunas fluidas */
+    .calendar-matrix-board.mode-spacious.cols-4,
+    .calendar-matrix-board.mode-spacious.cols-5 {
+        grid-template-columns: 1fr !important;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Cards de Marco do Calendário em Modo Spacious no Mobile */
+    .calendar-matrix-board.mode-spacious .milestone-poster-card {
+        aspect-ratio: auto;
+        min-height: 110px;
+        max-height: none;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.85rem 1rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    /* Touch Targets Acessíveis e Legíveis nos Cards de Marco (>= 44px) */
+    .btn-card-top-ok {
+        min-height: 44px;
+        min-width: 62px;
+        padding: 0.45rem 0.85rem;
+        font-size: 0.84rem;
+        font-weight: 800;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: manipulation;
+    }
+
+    .btn-card-top-ok:active {
+        transform: scale(0.95);
+    }
+
+    .milestone-big-title {
+        font-size: 1.2rem;
+        font-weight: 800;
+        line-height: 1.25;
+    }
+
+    .milestone-click-hint {
+        min-height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+    }
+
+    /* Modo Compact (Bebê / Criança) no Mobile: Scroll horizontal com Snap e Peeking natural */
+    .calendar-matrix-board.mode-compact {
+        display: flex;
+        flex-direction: row;
+        gap: 0.75rem;
+        overflow-x: auto !important;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 0.15rem 0 6rem 0;
+    }
+
+    .calendar-matrix-board.mode-compact .flow-milestone-column {
+        flex: 0 0 calc(85vw - 1.25rem);
+        min-width: 250px;
+        max-width: 320px;
+        scroll-snap-align: center;
+        box-sizing: border-box;
+    }
+
+    .calendar-matrix-board.mode-compact .milestone-poster-card {
+        aspect-ratio: 3 / 4;
+        max-height: 270px;
+        width: 100%;
+    }
+
+    /* Bloco de Sub-cards expandido no Mobile: Zero overflow e linhas confortáveis */
+    .flow-subcard-block {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .flow-vac-row {
+        padding: 0.75rem 0.65rem;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        box-sizing: border-box;
+    }
+
+    .flow-h-connector {
+        display: none; /* Elimina conector fixo para prevenir aperto horizontal */
+    }
+
+    .flow-vac-box {
+        flex: 1 1 100%;
+        min-width: 0;
+        cursor: pointer;
+    }
+
+    .flow-vac-name {
+        font-size: 0.92rem;
+        font-weight: 800;
+        line-height: 1.25;
+    }
+
+    .flow-doses-col {
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        justify-content: flex-end;
+        margin-top: 0.25rem;
+        box-sizing: border-box;
+    }
+
+    /* Touch Targets para Doses Individuais (>= 44px) */
+    .flow-dose-item {
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        min-height: 44px;
+        padding: 0.25rem 0.6rem;
+        border-radius: 6px;
+        box-sizing: border-box;
+        touch-action: manipulation;
+    }
+
+    .flow-dose-btn-ok {
+        min-height: 38px;
+        min-width: 44px;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.78rem;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: manipulation;
+    }
+
+    .dose-danger-tag {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.65rem;
+        font-size: 0.75rem;
+        box-sizing: border-box;
+    }
+
+    /* 4. Cesto de Prescrição Flutuante no Mobile: Não transborda horizontalmente */
+    .prescription-basket-bar {
+        width: calc(100% - 1.5rem);
+        max-width: 100%;
+        padding: 0.55rem 0.75rem;
+        bottom: 0.75rem;
+        gap: 0.5rem;
+        box-sizing: border-box;
+    }
+
+    .basket-sub {
+        display: none; /* Oculta subtítulo secundário no mobile para acomodar os botões */
+    }
+
+    .basket-badge-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1.1rem;
+    }
+
+    .basket-title {
+        font-size: 0.85rem;
+    }
+
+    .btn-basket-preview {
+        min-height: 44px;
+        padding: 0.45rem 0.65rem;
+        font-size: 0.75rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: manipulation;
+    }
+
+    .btn-basket-advance {
+        min-height: 44px;
+        padding: 0.45rem 0.85rem;
+        font-size: 0.78rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: manipulation;
+    }
+}
+
+/* Ajustes Específicos para Telas Ultra Compactas (< 480px) */
+@media (max-width: 480px) {
+    .main-container {
+        padding: 0.4rem 0.65rem 2rem 0.65rem !important;
+    }
+
+    .profiles-cards-container {
+        gap: 0.55rem;
+        padding: 0.15rem 0 1rem 0;
+    }
+
+    .profile-poster-card {
+        min-height: 145px;
+        max-height: 215px;
+    }
+
+    .profile-poster-card:last-child:nth-child(odd) {
+        min-height: 105px;
+        max-height: 135px;
+    }
+
+    .poster-card-title {
+        font-size: 0.86rem;
+    }
+
+    .calendar-matrix-board {
+        padding: 0.15rem 0 6.5rem 0;
+        gap: 0.65rem;
+    }
+
+    .calendar-matrix-board.mode-compact .flow-milestone-column {
+        flex: 0 0 calc(88vw - 1rem);
+        min-width: 240px;
     }
 }
 
