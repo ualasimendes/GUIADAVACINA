@@ -38,16 +38,31 @@
             <div class="dropdown-user-header">
                 <div class="dropdown-avatar" id="dropdownAvatar">🩺</div>
                 <div class="dropdown-user-meta">
-                    <strong id="dropdownUserName">Profissional Conectado</strong>
+                    <strong id="dropdownUserName">Usuário Conectado</strong>
                     <span id="dropdownUserEmail">-</span>
                     <span class="dropdown-role-tag" id="dropdownUserRole">Prescritor Habilitado</span>
+                    <span class="dropdown-subscription-badge" id="dropdownSubBadge">⭐ Assinatura Ativa (PRO)</span>
                 </div>
             </div>
             <div class="dropdown-actions">
-                <button class="btn-dropdown-action" onclick="openHistoryModal('prescriptions')">📋 Histórico de Prescrições</button>
-                <button class="btn-dropdown-action" onclick="openHistoryModal('patients')">👥 Histórico de Pacientes</button>
-                <button class="btn-dropdown-action" onclick="openPrescriptionDataModal()">✏️ Prescrição &amp; Dados</button>
-                <button class="btn-dropdown-logout" onclick="triggerGoogleLogout()">🚪 Sair da Conta Google</button>
+                <button class="btn-dropdown-action" onclick="navigateToRoute('/PERFIL/HISTORICO')">
+                    📋 Histórico de Prescrições
+                </button>
+                <button class="btn-dropdown-action btn-highlight-signature" id="dropdownBtnSignature" onclick="navigateToRoute('/PERFIL/ASSINATURA')">
+                    ✍️ ASSINATURA DIGITAL
+                </button>
+                <button class="btn-dropdown-action" onclick="openSubscriptionModal()">
+                    ⭐ Gestão de Assinatura
+                </button>
+                <button class="btn-dropdown-action btn-highlight-referral" onclick="openReferralModal()">
+                    🎁 Ganhe 1 Mês Grátis (Link de Indicação)
+                </button>
+                <button class="btn-dropdown-action" onclick="navigateToRoute('/PERFIL/MEU CADASTRO')">
+                    ✏️ Meus Dados Cadastrais
+                </button>
+                <button class="btn-dropdown-logout" onclick="triggerGoogleLogout()">
+                    🚪 Sair da Conta Google
+                </button>
             </div>
         </div>
     </div>
@@ -66,7 +81,7 @@
 
             <div class="profiles-cards-container">
                 <!-- Perfil 1: Recém-Nascido até 9 Meses -->
-                <div class="profile-poster-card" onclick="goToComorbiditiesScreen('baby')">
+                <div class="profile-poster-card" onclick="navigateToProfileRoute('baby')">
                     <img src="foto-bebe.jpeg" alt="Recém-Nascido até 9 Meses" class="poster-card-img">
                     <div class="poster-card-scrim"></div>
                     <div class="poster-card-bottom">
@@ -75,7 +90,7 @@
                 </div>
 
                 <!-- Perfil 2: Criança e Adolescente (12m a 19 anos) -->
-                <div class="profile-poster-card" onclick="goToComorbiditiesScreen('teen')">
+                <div class="profile-poster-card" onclick="navigateToProfileRoute('teen')">
                     <img src="foto-crianca.jpeg" alt="Criança e Adolescente" class="poster-card-img">
                     <div class="poster-card-scrim"></div>
                     <div class="poster-card-bottom">
@@ -84,7 +99,7 @@
                 </div>
 
                 <!-- Perfil 3: Adulto -->
-                <div class="profile-poster-card" onclick="goToComorbiditiesScreen('adult')">
+                <div class="profile-poster-card" onclick="navigateToProfileRoute('adult')">
                     <img src="foto-adulto.jpeg" alt="Adulto" class="poster-card-img">
                     <div class="poster-card-scrim"></div>
                     <div class="poster-card-bottom">
@@ -93,7 +108,7 @@
                 </div>
 
                 <!-- Perfil 4: Gestante -->
-                <div class="profile-poster-card card-pregnant" onclick="goToComorbiditiesScreen('pregnant')">
+                <div class="profile-poster-card card-pregnant" onclick="navigateToProfileRoute('pregnant')">
                     <img src="foto-gestante.jpeg" alt="Gestante" class="poster-card-img">
                     <div class="poster-card-scrim"></div>
                     <div class="poster-card-bottom">
@@ -102,7 +117,7 @@
                 </div>
 
                 <!-- Perfil 5: Pessoa Idosa -->
-                <div class="profile-poster-card" onclick="goToComorbiditiesScreen('elderly')">
+                <div class="profile-poster-card" onclick="navigateToProfileRoute('elderly')">
                     <img src="foto-idoso.jpeg" alt="Pessoa Idosa" class="poster-card-img">
                     <div class="poster-card-scrim"></div>
                     <div class="poster-card-bottom">
@@ -419,7 +434,6 @@
                         <div class="role-card-icon">🏥</div>
                         <div class="role-card-content">
                             <strong class="role-card-title">Profissional em Estabelecimento</strong>
-                            <span class="role-card-desc">Farmácia, clínica ou serviço habilitado a vacinar.</span>
                         </div>
                     </div>
 
@@ -429,7 +443,6 @@
                         <div class="role-card-icon">🩺</div>
                         <div class="role-card-content">
                             <strong class="role-card-title">Profissional Habilitado</strong>
-                            <span class="role-card-desc">Prescritor autônomo ou consultório (CRF, CRM ou COREN).</span>
                         </div>
                     </div>
 
@@ -438,8 +451,7 @@
                         <div class="role-card-radio"></div>
                         <div class="role-card-icon">👤</div>
                         <div class="role-card-content">
-                            <strong class="role-card-title">Somente Paciente</strong>
-                            <span class="role-card-desc">Consulta individual para orientação e triagem vacinal.</span>
+                            <strong class="role-card-title">Paciente</strong>
                         </div>
                     </div>
                 </div>
@@ -590,7 +602,7 @@
                         <span class="google-brand-text">Google</span>
                     </div>
                     <h3 class="google-signin-title" id="googleModalTitle">Fazer login com o Google</h3>
-                    <p class="google-signin-sub" id="googleModalSubtitle">Autenticação oficial para prescrição de vacinas.</p>
+                    <p class="google-signin-sub" id="googleModalSubtitle" style="display: none;"></p>
                 </div>
                 <button class="modal-close-btn" onclick="closeGoogleSignInModal()" title="Fechar (Esc)">✕</button>
             </div>
@@ -602,38 +614,38 @@
                         <span class="stepper-num">1</span>
                         <span class="stepper-label">Conta Google</span>
                     </div>
-                    <div class="stepper-line" id="stepperLine"></div>
+                    <div class="stepper-line" id="stepperLine1"></div>
                     <div class="stepper-step" id="stepperStep2">
                         <span class="stepper-num">2</span>
-                        <span class="stepper-label">Conselho Profissional</span>
+                        <span class="stepper-label">Perfil</span>
+                    </div>
+                    <div class="stepper-line" id="stepperLine2"></div>
+                    <div class="stepper-step" id="stepperStep3">
+                        <span class="stepper-num">3</span>
+                        <span class="stepper-label">Identificação</span>
                     </div>
                 </div>
 
                 <!-- ETAPA 1: AUTENTICAÇÃO COM CONTA GOOGLE -->
                 <div id="googleAuthStep1" class="google-step-pane active">
                     <div class="google-auth-box">
-                        <div class="google-account-prompt">
-                            <p class="google-prompt-instruction">
-                                Para emitir prescrições e orientações técnicas com validade profissional, identifique-se com sua <strong>Conta Google</strong>:
-                            </p>
-                        </div>
-
-                        <!-- Botão Oficial Google OAuth / GIS -->
+                        <!-- Botão Oficial Google OAuth Único -->
                         <div class="google-oauth-action-area">
-                            <div id="gsiButtonWrapper" class="gsi-button-slot"></div>
-                            <button type="button" class="btn-google-native-login" id="btnGoogleNativeAction" onclick="triggerGoogleLoginFlow()">
-                                <svg class="google-icon-svg" viewBox="0 0 24 24" width="20" height="20">
-                                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
-                                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.37 7.36 24 12 24z"/>
-                                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
-                                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.27 2.63 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-                                </svg>
-                                <span>Entrar com a Conta Google</span>
-                            </button>
+                            <div id="gsiButtonWrapper" class="gsi-button-slot">
+                                <button type="button" class="btn-google-native-login" id="btnGoogleNativeAction" onclick="triggerGoogleLoginFlow()">
+                                    <svg class="google-icon-svg" viewBox="0 0 24 24" width="20" height="20">
+                                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.37 7.36 24 12 24z"/>
+                                        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
+                                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.27 2.63 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                                    </svg>
+                                    <span>Entrar com a Conta Google</span>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="google-auth-divider">
-                            <span>ou confirme com seus dados cadastrais</span>
+                            <span>ou continue com seus dados de e-mail</span>
                         </div>
 
                         <form id="formGoogleStep1" onsubmit="handleGoogleStep1Submit(event)" class="google-manual-form">
@@ -643,49 +655,84 @@
                             </div>
 
                             <div class="form-group">
-                                <label for="step1GoogleName">Nome Completo do Prescritor <span class="req-star">*</span></label>
-                                <input type="text" id="step1GoogleName" class="form-control form-control-google" placeholder="Dr(a). Seu Nome Completo" required autocomplete="name">
+                                <label for="step1GoogleName">Nome Completo <span class="req-star">*</span></label>
+                                <input type="text" id="step1GoogleName" class="form-control form-control-google" placeholder="Seu Nome Completo" required autocomplete="name">
                             </div>
 
                             <button type="submit" class="btn-google-sign-in-action" id="btnContinueWithGoogle">
-                                <span>Prosseguir para Inscrição Profissional →</span>
+                                <span>Prosseguir para Escolha do Perfil →</span>
                             </button>
                         </form>
-
-                        <div class="google-demo-row">
-                            <button type="button" class="btn-demo-quick-login" onclick="fillDemoGoogleAccount()" title="Acesso rápido para demonstração">
-                                ⚡ Usar Perfil Profissional de Teste (Farmacêutico CRF/RJ 12345)
-                            </button>
-                        </div>
                     </div>
                 </div>
 
-                <!-- ETAPA 2: VINCULAÇÃO DO CONSELHO PROFISSIONAL (CRF/CRM/COREN) -->
+                <!-- ETAPA 2: ESCOLHA DE PERFIL (PROFISSIONAL OU PACIENTE) -->
                 <div id="googleAuthStep2" class="google-step-pane" style="display: none;">
                     <div class="google-user-connected-badge">
                         <div class="connected-badge-avatar" id="step2Avatar">🩺</div>
                         <div class="connected-badge-info">
-                            <span class="badge-tag-ok">✓ Conta Google Conectada</span>
                             <strong class="badge-user-name" id="step2Name">Nome</strong>
                             <span class="badge-user-email" id="step2Email">email@gmail.com</span>
                         </div>
                     </div>
 
-                    <form id="formGoogleStep2" onsubmit="handleGoogleStep2Submit(event)" class="custom-google-form">
-                        <div class="custom-form-title">Dados de Inscrição Profissional (Habilitação)</div>
-
-                        <div class="form-grid-3">
-                            <div class="form-group">
-                                <label for="step2Council">Conselho <span class="req-star">*</span></label>
-                                <select id="step2Council" class="form-control">
-                                    <option value="CRF">CRF (Farmácia)</option>
-                                    <option value="CRM">CRM (Medicina)</option>
-                                    <option value="COREN">COREN (Enfermagem)</option>
-                                </select>
+                    <div class="profile-choice-container">
+                        <div class="profile-choice-cards">
+                            <div class="profile-choice-card" onclick="selectLoginProfileRole('professional')">
+                                <div class="choice-card-icon">🩺</div>
+                                <h4 class="choice-card-title">Profissional de Saúde</h4>
                             </div>
+
+                            <div class="profile-choice-card" onclick="selectLoginProfileRole('patient')">
+                                <div class="choice-card-icon">👤</div>
+                                <h4 class="choice-card-title">Paciente</h4>
+                            </div>
+                        </div>
+
+                        <div class="step-actions-row" style="margin-top: 1rem;">
+                            <button type="button" class="btn-step-back" onclick="goToGoogleStep(1)">← Trocar Conta Google</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ETAPA 3A: REGISTRO DO PROFISSIONAL (CRM, CRF, COREN, UF, Nº, CPF) -->
+                <div id="googleAuthStep3Prof" class="google-step-pane" style="display: none;">
+                    <div class="google-user-connected-badge">
+                        <div class="connected-badge-avatar" id="step3ProfAvatar">🩺</div>
+                        <div class="connected-badge-info">
+                            <strong class="badge-user-name" id="step3ProfName">Nome</strong>
+                            <span class="badge-user-email" id="step3ProfEmail">email@gmail.com</span>
+                        </div>
+                    </div>
+
+                    <form id="formGoogleStep3Prof" onsubmit="handleGoogleStep3ProfSubmit(event)" class="custom-google-form">
+                        <div class="custom-form-title">Inscrição Profissional</div>
+
+                        <div class="form-group">
+                            <label for="step3ProfFullName">Nome e Sobrenome <span class="req-star">*</span></label>
+                            <input type="text" id="step3ProfFullName" class="form-control" placeholder="Seu nome e sobrenome completos" required autocomplete="name">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Conselho de Classe <span class="req-star">*</span></label>
+                            <div class="council-pills-selector">
+                                <button type="button" class="council-pill-btn active" id="pillCRM" onclick="selectCouncilPill('CRM')">
+                                    <strong>CRM</strong>
+                                </button>
+                                <button type="button" class="council-pill-btn" id="pillCRF" onclick="selectCouncilPill('CRF')">
+                                    <strong>CRF</strong>
+                                </button>
+                                <button type="button" class="council-pill-btn" id="pillCOREN" onclick="selectCouncilPill('COREN')">
+                                    <strong>COREN</strong>
+                                </button>
+                            </div>
+                            <input type="hidden" id="step3ProfCouncil" value="CRM">
+                        </div>
+
+                        <div class="form-grid-2">
                             <div class="form-group">
-                                <label for="step2Uf">UF <span class="req-star">*</span></label>
-                                <select id="step2Uf" class="form-control">
+                                <label for="step3ProfUf">UF de Inscrição <span class="req-star">*</span></label>
+                                <select id="step3ProfUf" class="form-control" required>
                                     <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
                                     <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
                                     <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
@@ -698,35 +745,75 @@
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="step2Number">Nº Inscrição <span class="req-star">*</span></label>
-                                <input type="text" id="step2Number" class="form-control" placeholder="Ex: 12345" required>
+                                <label for="step3ProfNumber">Nº de Inscrição <span class="req-star">*</span></label>
+                                <input type="text" id="step3ProfNumber" class="form-control" placeholder="Ex: 12345" required autocomplete="off">
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label for="step2Cpf">CPF do Profissional Prescritor <span class="req-star">*</span></label>
-                            <input type="text" id="step2Cpf" class="form-control" placeholder="000.000.000-00" required maxlength="14" oninput="formatCpfInput(this)">
+                            <label for="step3ProfCpf">CPF do Profissional Prescritor <span class="req-star">*</span></label>
+                            <input type="text" id="step3ProfCpf" class="form-control" placeholder="000.000.000-00" required maxlength="14" oninput="formatCpfInput(this)">
                         </div>
 
                         <div class="form-group">
-                            <label for="step2Establishment">Estabelecimento / Clínica (Opcional se autônomo)</label>
-                            <input type="text" id="step2Establishment" class="form-control" placeholder="Nome Fantasia / Razão Social">
+                            <label for="step3ProfEstablishment">Estabelecimento / Clínica (Opcional)</label>
+                            <input type="text" id="step3ProfEstablishment" class="form-control" placeholder="Nome Fantasia / Razão Social">
                         </div>
 
-                        <div class="form-group">
-                            <label for="step2Cnpj">CNPJ do Estabelecimento (Opcional)</label>
-                            <input type="text" id="step2Cnpj" class="form-control" placeholder="00.000.000/0001-00" maxlength="18" oninput="formatCnpjInput(this)">
+                        <div class="form-group signature-form-group">
+                            <div class="signature-label-row">
+                                <label>Assinatura Digital (Obrigatória) <span class="req-star">*</span></label>
+                                <button type="button" class="btn-clear-sig" onclick="clearSignatureCanvas('step3ProfSignatureCanvas')">🗑️ Limpar</button>
+                            </div>
+                            <div class="signature-canvas-container">
+                                <canvas id="step3ProfSignatureCanvas" width="460" height="130" class="signature-canvas"></canvas>
+                                <div class="signature-baseline-guide">Assine sobre a linha</div>
+                            </div>
                         </div>
 
                         <div class="step-actions-row">
-                            <button type="button" class="btn-step-back" onclick="goToGoogleStep(1)">← Voltar</button>
-                            <button type="submit" class="btn-step-finish">✓ Salvar Registro &amp; Desbloquear</button>
+                            <button type="button" class="btn-step-back" onclick="goToGoogleStep(2)">← Trocar Perfil</button>
+                            <button type="submit" class="btn-step-finish">✓ Concluir Cadastro</button>
                         </div>
                     </form>
                 </div>
 
-                <div class="google-privacy-footer">
-                    <span>🛡️ Conformidade LGPD (Lei 13.709/2018). As credenciais profissionais são validadas estritamente para a responsabilidade técnica do receituário (CFF 585/586, CFM e RDC 197/2017).</span>
+                <!-- ETAPA 3B: REGISTRO DO PACIENTE (SOMENTE NOME, DATA DE NASCIMENTO E CPF) -->
+                <div id="googleAuthStep3Patient" class="google-step-pane" style="display: none;">
+                    <div class="google-user-connected-badge">
+                        <div class="connected-badge-avatar" id="step3PatientAvatar">👤</div>
+                        <div class="connected-badge-info">
+                            <strong class="badge-user-name" id="step3PatientName">Nome</strong>
+                            <span class="badge-user-email" id="step3PatientEmail">email@gmail.com</span>
+                        </div>
+                    </div>
+
+                    <form id="formGoogleStep3Patient" onsubmit="handleGoogleStep3PatientSubmit(event)" class="custom-google-form">
+                        <div class="custom-form-title">Dados do Paciente</div>
+
+                        <div class="form-group">
+                            <label for="step3PatientFullName">Nome e Sobrenome <span class="req-star">*</span></label>
+                            <input type="text" id="step3PatientFullName" class="form-control" placeholder="Seu nome e sobrenome completos" required autocomplete="name">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="step3PatientBirthDate">Data de Nascimento <span class="req-star">*</span></label>
+                            <input type="date" id="step3PatientBirthDate" class="form-control" required onchange="handlePatientBirthDateChange(this.value)">
+                            <div class="patient-age-feedback" id="patientAgeFeedback" style="display: none;">
+                                <span>Faixa etária calculada:</span> <strong id="patientCalculatedCategory">-</strong>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="step3PatientCpf">CPF do Paciente <span class="req-star">*</span></label>
+                            <input type="text" id="step3PatientCpf" class="form-control" placeholder="000.000.000-00" required maxlength="14" oninput="formatCpfInput(this)">
+                        </div>
+
+                        <div class="step-actions-row">
+                            <button type="button" class="btn-step-back" onclick="goToGoogleStep(2)">← Trocar Perfil</button>
+                            <button type="submit" class="btn-step-finish">✓ Concluir Cadastro</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -786,6 +873,220 @@
 
             <div class="modal-footer">
                 <button class="btn-modal-close" onclick="closeHistoryModal()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         MODAL DE GESTÃO DE ASSINATURA
+    ========================================================================= -->
+    <div class="modal-backdrop" id="subscriptionModal" onclick="handleSubscriptionModalBackdropClick(event)">
+        <div class="modal-dialog modal-dialog-subscription">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-badge-age">Assinatura &amp; Plano</span>
+                    <h3 class="modal-title">Gestão de Assinatura</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeSubscriptionModal()" title="Fechar (Esc)">✕</button>
+            </div>
+
+            <div class="modal-body subscription-modal-body">
+                <!-- Card de Status do Plano -->
+                <div class="subscription-status-card">
+                    <div class="sub-card-top">
+                        <div class="sub-plan-badge" id="subPlanBadge">
+                            <span class="sub-status-dot"></span>
+                            <span id="subPlanStatusText">Assinatura Ativa (PRO)</span>
+                        </div>
+                        <span class="sub-tier-pill" id="subTierPill">Acesso Completo</span>
+                    </div>
+
+                    <div class="sub-card-main">
+                        <h4 class="sub-plan-name" id="subPlanTitle">Plano Profissional Guia Vacinal</h4>
+                        <p class="sub-plan-desc">Prescrição técnica ilimitada, calendários SBIm/PNI atualizados e histórico seguro de pacientes.</p>
+                    </div>
+
+                    <div class="sub-metrics-grid">
+                        <div class="sub-metric-box">
+                            <span class="sub-metric-lbl">Status</span>
+                            <strong class="sub-metric-val status-green" id="subStatusVal">Ativo</strong>
+                        </div>
+                        <div class="sub-metric-box">
+                            <span class="sub-metric-lbl">Validade Atual</span>
+                            <strong class="sub-metric-val" id="subExpirationVal">30 dias</strong>
+                        </div>
+                        <div class="sub-metric-box">
+                            <span class="sub-metric-lbl">Bônus por Indicação</span>
+                            <strong class="sub-metric-val bonus-gold" id="subBonusVal">+0 mês</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Banner Promocional de Indicação -->
+                <div class="sub-referral-promo-callout" onclick="closeSubscriptionModal(); openReferralModal();">
+                    <div class="promo-callout-icon">🎁</div>
+                    <div class="promo-callout-text">
+                        <strong>Quer mais meses grátis?</strong>
+                        <span>Indique colegas ou pacientes e ganhe 1 mês grátis para cada cadastro novo.</span>
+                    </div>
+                    <button type="button" class="btn-sub-action-link">Ver Meu Link →</button>
+                </div>
+
+                <!-- Lista de Benefícios Ativos -->
+                <div class="sub-benefits-list">
+                    <h5 class="sub-benefits-heading">Benefícios Inclusos no Seu Acesso:</h5>
+                    <div class="sub-benefit-item">
+                        <span class="benefit-check">✓</span>
+                        <span>Emissão de receituários com assinatura técnica digital (CRM, CRF, COREN).</span>
+                    </div>
+                    <div class="sub-benefit-item">
+                        <span class="benefit-check">✓</span>
+                        <span>Cruzamento inteligente de contraindicações e esquemas especiais.</span>
+                    </div>
+                    <div class="sub-benefit-item">
+                        <span class="benefit-check">✓</span>
+                        <span>Histórico perpétuo de prescrições e base de pacientes atendidos.</span>
+                    </div>
+                    <div class="sub-benefit-item">
+                        <span class="benefit-check">✓</span>
+                        <span>Programa Indique e Ganhe ilimitado (+1 mês grátis por novo usuário cadastrado).</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer subscription-footer">
+                <button class="btn-sub-secondary" onclick="closeSubscriptionModal(); openReferralModal();">
+                    🎁 Indicar Amigo (+1 Mês Grátis)
+                </button>
+                <button class="btn-modal-close" onclick="closeSubscriptionModal()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         MODAL DE ASSINATURA DIGITAL DO PROFISSIONAL
+    ========================================================================= -->
+    <div class="modal-backdrop" id="signatureModal" onclick="handleSignatureModalBackdropClick(event)">
+        <div class="modal-dialog modal-dialog-signature">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-badge-age">Prescritor Habilitado</span>
+                    <h3 class="modal-title">✍️ ASSINATURA DIGITAL</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeSignatureModal()" title="Fechar (Esc)">✕</button>
+            </div>
+
+            <div class="modal-body signature-modal-body">
+                <!-- Card: Assinatura Atual (se houver) -->
+                <div id="modalCurrentSignatureCard" class="signature-status-card" style="display: none;">
+                    <div class="signature-card-title">Assinatura Atual Cadastrada</div>
+                    <div class="signature-preview-wrap">
+                        <img id="modalSavedSignaturePreview" src="" alt="Assinatura Salva" class="signature-preview-img" />
+                    </div>
+                </div>
+
+                <!-- Card: Desenhar Assinatura -->
+                <div class="signature-status-card">
+                    <div class="signature-card-head">
+                        <div class="signature-card-title">Desenhar Assinatura</div>
+                        <button type="button" class="btn-clear-sig" onclick="clearSignatureCanvas('modalSignatureCanvas')">
+                            🗑️ Limpar
+                        </button>
+                    </div>
+                    <div class="signature-canvas-container">
+                        <canvas id="modalSignatureCanvas" width="460" height="150" class="signature-canvas"></canvas>
+                        <div class="signature-baseline-guide">Assine sobre a linha</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer signature-modal-footer">
+                <button type="button" class="btn-modal-close" onclick="closeSignatureModal()">Fechar</button>
+                <button type="button" class="btn-save-signature" onclick="saveSignatureFromModal()">
+                    ✓ Salvar Assinatura Digital
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         MODAL DE INDIQUE E GANHE (LINK DE REDIRECIONAMENTO COM 1 MÊS GRÁTIS)
+    ========================================================================= -->
+    <div class="modal-backdrop" id="referralModal" onclick="handleReferralModalBackdropClick(event)">
+        <div class="modal-dialog modal-dialog-referral">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-badge-age">Programa de Afiliados &amp; Amigos</span>
+                    <h3 class="modal-title">🎁 Indique e Ganhe 1 Mês Grátis</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeReferralModal()" title="Fechar (Esc)">✕</button>
+            </div>
+
+            <div class="modal-body referral-modal-body">
+                <!-- Banner de Oferta -->
+                <div class="referral-hero-card">
+                    <div class="referral-hero-content">
+                        <h4 class="referral-hero-title">Cadastrou pelo seu link? Ganhe 1 Mês Grátis!</h4>
+                        <p class="referral-hero-desc">
+                            Compartilhe seu <strong>link exclusivo de redirecionamento</strong> com colegas de trabalho, outros prescritores ou pacientes. A cada pessoa que se cadastrar na plataforma usando seu link, <strong>você ganha 1 mês grátis</strong> de assinatura e seu amigo também ganha benefícios exclusivos!
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Caixa com o Link Exclusivo do Usuário -->
+                <div class="referral-link-section">
+                    <label class="referral-link-label" for="userReferralLinkInput">Seu Link Exclusivo de Redirecionamento:</label>
+                    <div class="referral-input-action-row">
+                        <input type="text" id="userReferralLinkInput" class="form-control referral-input" readonly value="https://vacinas.walacemendes.com.br/?ref=">
+                        <button type="button" class="btn-copy-referral" id="btnCopyReferralLink" onclick="copyUserReferralLink()">
+                            <span id="copyReferralIcon">📋</span>
+                            <span id="copyReferralText">Copiar Link</span>
+                        </button>
+                    </div>
+                    <div class="referral-social-share-row">
+                        <button type="button" class="btn-share-whatsapp" onclick="shareReferralOnWhatsApp()">
+                            <span>💬 Compartilhar no WhatsApp</span>
+                        </button>
+                        <button type="button" class="btn-share-generic" onclick="shareReferralWebAPI()">
+                            <span>📤 Compartilhar...</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Painel de Estatísticas de Indicações -->
+                <div class="referral-stats-container">
+                    <h5 class="referral-stats-title">Seu Desempenho de Indicações:</h5>
+                    <div class="referral-stats-grid">
+                        <div class="referral-stat-card">
+                            <span class="stat-icon">👥</span>
+                            <strong class="stat-number" id="referralCountVal">0</strong>
+                            <span class="stat-label">Cadastros Realizados</span>
+                        </div>
+                        <div class="referral-stat-card highlight-gold">
+                            <span class="stat-icon">🎁</span>
+                            <strong class="stat-number" id="referralMonthsBonusVal">+0</strong>
+                            <span class="stat-label">Meses Grátis Ganhos</span>
+                        </div>
+                        <div class="referral-stat-card">
+                            <span class="stat-icon">⭐</span>
+                            <strong class="stat-number" id="referralStatusBadge">Ativo</strong>
+                            <span class="stat-label">Status do Benefício</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="referral-instruction-box">
+                    <strong>Como funciona:</strong>
+                    <ol>
+                        <li>Copie e envie seu link para amigos, colegas ou grupos.</li>
+                        <li>A pessoa acessa o link e realiza o cadastro (Profissional ou Paciente) com a Conta Google.</li>
+                        <li>O sistema credita automaticamente <strong>+1 mês grátis</strong> na sua conta e ativa a promoção. Sem limites de indicações!</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-modal-close" onclick="closeReferralModal()">Fechar</button>
             </div>
         </div>
     </div>

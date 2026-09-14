@@ -17,30 +17,34 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-    const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost:3000'}`);
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
+    const proto = req.headers['x-forwarded-proto'] || (host.includes('localhost') ? 'http' : 'https');
+    const parsedUrl = new URL(req.url, `${proto}://${host}`);
     const pathname = parsedUrl.pathname;
+
+    const DEFAULT_GOOGLE_CLIENT_ID = '986855077085-n9sgr3399521gfo9mc5h1lggjvj3gbnt.apps.googleusercontent.com';
+    const activeGoogleClientId = process.env.GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID;
+    const activeGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
 
     // Rota API Google OAuth: Configuração do Cliente
     if (req.method === 'GET' && pathname === '/api/auth/google/config') {
-        const clientId = process.env.GOOGLE_CLIENT_ID || '';
         res.writeHead(200, {
             'Content-Type': 'application/json; charset=utf-8',
             'Access-Control-Allow-Origin': '*'
         });
         res.end(JSON.stringify({
-            clientId: clientId,
-            isConfigured: Boolean(clientId && clientId.trim().length > 5)
+            clientId: activeGoogleClientId,
+            isConfigured: Boolean(activeGoogleClientId && activeGoogleClientId.trim().length > 5)
         }));
         return;
     }
 
     // Rota API Google OAuth: Obter URL de Autorização para Popup
     if (req.method === 'GET' && pathname === '/api/auth/google/url') {
-        const clientId = process.env.GOOGLE_CLIENT_ID || '';
-        const appUrl = process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : `http://${req.headers.host || 'localhost:3000'}`;
+        const appUrl = process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : `${proto}://${host}`;
         const redirectUri = `${appUrl}/auth/callback`;
 
-        if (!clientId) {
+        if (!activeGoogleClientId) {
             res.writeHead(200, {
                 'Content-Type': 'application/json; charset=utf-8',
                 'Access-Control-Allow-Origin': '*'
@@ -54,7 +58,7 @@ const server = http.createServer((req, res) => {
         }
 
         const params = new URLSearchParams({
-            client_id: clientId,
+            client_id: activeGoogleClientId,
             redirect_uri: redirectUri,
             response_type: 'token id_token',
             scope: 'openid email profile',
@@ -227,6 +231,23 @@ const server = http.createServer((req, res) => {
     fs.readFile(filePath, (err, content) => {
         if (err) {
             if (err.code === 'ENOENT') {
+                // SPA Fallback: Se for rota sem extensão de arquivo de asset, responde com index.html
+                const ext = path.extname(reqUrl).toLowerCase();
+                const isStaticAsset = ext && ext !== '.html' && MIME_TYPES[ext];
+
+                if (!isStaticAsset) {
+                    fs.readFile(path.join(__dirname, 'index.html'), (fallbackErr, fallbackContent) => {
+                        if (fallbackErr) {
+                            res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+                            res.end('500 Erro Interno');
+                        } else {
+                            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                            res.end(fallbackContent);
+                        }
+                    });
+                    return;
+                }
+
                 res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
                 res.end('404 Arquivo Não Encontrado');
             } else {

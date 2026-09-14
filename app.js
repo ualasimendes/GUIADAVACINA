@@ -1123,6 +1123,113 @@ const COMORBIDADES_LIST = [
 ];
 
 let selectedComorbidities = new Set(['nenhuma']);
+
+// =========================================================================
+// SISTEMA DE ROTEAMENTO SPA (DEEP LINKING E URLs AMIGÁVEIS)
+// =========================================================================
+const PROFILE_ROUTE_MAP = {
+    'baby': '/RECEM-NASCIDO',
+    'teen': '/CRIANCA-ADOLESCENTE/COMORBIDADES/PRESCRICAO',
+    'adult': '/ADULTO/COMORBIDADES/PRESCRICAO',
+    'pregnant': '/GESTANTE/COMORBIDADES/PRESCRICAO',
+    'elderly': '/IDOSO/COMORBIDADES/PRESCRICAO'
+};
+
+function getRouteForProfile(profileKey) {
+    return PROFILE_ROUTE_MAP[profileKey] || '/';
+}
+
+function getActiveScreenRoute() {
+    if (currentActiveScreenId === 'screen-profiles') {
+        return '/';
+    }
+    return getRouteForProfile(currentProfileKey);
+}
+
+function syncUrlPath(route, replace = false) {
+    try {
+        const current = decodeURIComponent(window.location.pathname || '').replace(/\/+$/, '') || '/';
+        const target = decodeURIComponent(route || '').replace(/\/+$/, '') || '/';
+        if (current.toUpperCase() === target.toUpperCase()) return;
+
+        if (replace) {
+            window.history.replaceState({ route: target }, '', target);
+        } else {
+            window.history.pushState({ route: target }, '', target);
+        }
+    } catch (e) {
+        console.warn('Erro ao atualizar URL no histórico:', e);
+    }
+}
+
+function restoreRouteAfterModalClose() {
+    const current = decodeURIComponent(window.location.pathname || '').toUpperCase();
+    if (current.startsWith('/PERFIL')) {
+        syncUrlPath(getActiveScreenRoute(), true);
+    }
+}
+
+function navigateToProfileRoute(profileKey, push = true) {
+    if (profileKey === 'baby') {
+        selectProfileAndAdvance('baby');
+        syncUrlPath('/RECEM-NASCIDO', !push);
+    } else {
+        goToComorbiditiesScreen(profileKey);
+        syncUrlPath(getRouteForProfile(profileKey), !push);
+    }
+}
+
+function navigateToRoute(route, push = true) {
+    const raw = decodeURIComponent(route || '').trim().replace(/\/+$/, '') || '/';
+    const upper = raw.toUpperCase();
+
+    if (upper === '/RECEM-NASCIDO' || upper === '/RECEM_NASCIDO' || upper === '/BEBE') {
+        selectProfileAndAdvance('baby');
+        syncUrlPath('/RECEM-NASCIDO', !push);
+    } else if (upper.includes('CRIANCA') || upper.includes('ADOLESCENTE')) {
+        goToComorbiditiesScreen('teen');
+        syncUrlPath('/CRIANCA-ADOLESCENTE/COMORBIDADES/PRESCRICAO', !push);
+    } else if (upper.includes('ADULTO')) {
+        goToComorbiditiesScreen('adult');
+        syncUrlPath('/ADULTO/COMORBIDADES/PRESCRICAO', !push);
+    } else if (upper.includes('GESTANTE')) {
+        goToComorbiditiesScreen('pregnant');
+        syncUrlPath('/GESTANTE/COMORBIDADES/PRESCRICAO', !push);
+    } else if (upper.includes('IDOSO')) {
+        goToComorbiditiesScreen('elderly');
+        syncUrlPath('/IDOSO/COMORBIDADES/PRESCRICAO', !push);
+    } else if (upper.includes('/PERFIL/MEU CADASTRO') || upper.includes('/PERFIL/MEU-CADASTRO') || upper.includes('/PERFIL/CADASTRO')) {
+        openEditUserDataModal();
+        syncUrlPath('/PERFIL/MEU CADASTRO', !push);
+    } else if (upper.includes('/PERFIL/HISTORICO')) {
+        openHistoryModal('prescriptions');
+        syncUrlPath('/PERFIL/HISTORICO', !push);
+    } else if (upper.includes('/PERFIL/ASSINATURA')) {
+        openSignatureModal();
+        syncUrlPath('/PERFIL/ASSINATURA', !push);
+    } else {
+        goToHomeProfiles();
+        syncUrlPath('/', !push);
+    }
+}
+
+function handleInitialRoute() {
+    const raw = decodeURIComponent(window.location.pathname || '').trim().replace(/\/+$/, '');
+    if (!raw || raw === '' || raw === '/index.html') {
+        return;
+    }
+    navigateToRoute(raw, false);
+}
+
+function initRouter() {
+    window.addEventListener('popstate', () => {
+        const path = decodeURIComponent(window.location.pathname || '');
+        navigateToRoute(path, false);
+    });
+
+    handleInitialRoute();
+}
+
 // =========================================================================
 // NAVEGAÇÃO E MOTOR DE TRIAGEM DE COMORBIDADES (PÁGINA DEDICADA)
 // =========================================================================
@@ -1130,9 +1237,11 @@ let pendingProfileKey = null;
 
 function goToComorbiditiesScreen(profileKey) {
     pendingProfileKey = profileKey;
+    currentProfileKey = profileKey;
     const profile = SBIM_CALENDAR_DATA[profileKey];
     if (!profile) return;
 
+    syncUrlPath(getRouteForProfile(profileKey));
     renderComorbiditiesCards();
     showScreen('screen-comorbidities');
 }
@@ -1284,14 +1393,19 @@ function handleFloatingBack() {
     if (currentActiveScreenId === 'screen-prescription') {
         showScreen('screen-vaccines');
     } else if (currentActiveScreenId === 'screen-vaccines') {
-        goToComorbiditiesScreen(currentProfileKey);
+        if (currentProfileKey === 'baby') {
+            goToHomeProfiles();
+        } else {
+            goToComorbiditiesScreen(currentProfileKey);
+        }
     } else {
-        showScreen('screen-profiles');
+        goToHomeProfiles();
     }
 }
 
 function goToHomeProfiles() {
     showScreen('screen-profiles');
+    syncUrlPath('/');
 }
 
 // Ao selecionar um dos 5 perfis na Tela 1
@@ -1302,6 +1416,8 @@ function selectProfileAndAdvance(profileKey) {
 
     const profile = SBIM_CALENDAR_DATA[profileKey];
     if (!profile) return;
+
+    syncUrlPath(getRouteForProfile(profileKey));
 
     // Adaptar dados de demonstração da prescrição para a faixa etária
     adaptPrescriptionPatientToProfile(profileKey);
@@ -2551,6 +2667,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Carregar Estado de Autenticação Google
     loadGoogleAuthState();
     initGoogleAuth();
+
+    // Inicializar Roteamento SPA
+    initRouter();
 });
 
 // =========================================================================
@@ -2596,9 +2715,13 @@ const VACCINE_BRAND_MAP = {
 // SISTEMA DE AUTENTICAÇÃO GOOGLE (BLOQUEIO DE PRESCRIÇÃO PROFISSIONAL)
 // =========================================================================
 const GOOGLE_AUTH_STORAGE_KEY = 'guia_vacinal_google_auth';
+const PRESCRIBERS_REGISTRY_KEY = 'guia_vacinal_prescribers_registry';
+const PATIENTS_AUTH_REGISTRY_KEY = 'guia_vacinal_patients_auth_registry';
+const REFERRALS_DB_KEY = 'guia_vacinal_referrals_db';
 
 let googleAuthState = {
     isLoggedIn: false,
+    userType: 'professional', // 'professional' | 'patient'
     email: '',
     name: '',
     avatar: '👤',
@@ -2608,10 +2731,17 @@ let googleAuthState = {
     councilNumber: '',
     cpf: '',
     companyName: '',
-    companyCnpj: ''
+    companyCnpj: '',
+    birthDate: '',
+    referralCode: '',
+    bonusMonths: 0,
+    subscriptionExpiresAt: '',
+    digitalSignature: ''
 };
 
 let currentModalRole = 'patient';
+let tempGoogleAuthData = { email: '', name: '', picture: '' };
+let currentRegistrationRole = 'professional';
 
 // Helpers globais de formatação e sanitização segura (LGPD & Anti-vazamento)
 function formatCpfInput(el) {
@@ -2658,7 +2788,8 @@ let userSessionData = {
     patientBirth: '',
     patientAge: '',
     patientCpf: '',
-    configured: false
+    configured: false,
+    digitalSignature: ''
 };
 
 // Sincronizar rótulo de faixa etária baseado no perfil selecionado, sem injetar dados fictícios
@@ -3304,8 +3435,16 @@ function renderPrescriptionPaper() {
                     <p>Documento emitido eletronicamente conforme resoluções de regulação da prescrição de imunobiológicos.</p>
                     <p>Guia Vacinal - Sistema de Apoio à Decisão Clínica e Prescrição.</p>
                 </div>
-                <div class="text-center sm:text-right min-w-[240px]">
-                    <div class="border-b border-slate-400 pb-1 mb-1 font-bold text-slate-950">Dr(a). ${userSessionData.professionalName}</div>
+                <div class="text-center sm:text-right min-w-[240px] flex flex-col items-center sm:items-end">
+                    ${(userSessionData.digitalSignature || googleAuthState.digitalSignature) ? `
+                        <div class="mb-1 flex flex-col items-center sm:items-end">
+                            <img src="${userSessionData.digitalSignature || googleAuthState.digitalSignature}" alt="Assinatura Digital Dr(a). ${userSessionData.professionalName}" class="h-12 max-w-[200px] object-contain" />
+                            <span class="text-[9px] text-emerald-800 font-bold tracking-wider">ASSINATURA DIGITAL REGISTRADA</span>
+                        </div>
+                    ` : `
+                        <div class="h-8"></div>
+                    `}
+                    <div class="border-b border-slate-400 pb-1 mb-1 font-bold text-slate-950 w-full text-center sm:text-right">Dr(a). ${userSessionData.professionalName}</div>
                     <span class="text-slate-600 block text-[11px]">${prescriberRegistration} • CPF: ${userSessionData.professionalCpf}</span>
                 </div>
             </div>
@@ -3699,11 +3838,9 @@ function handleBasketModalBackdropClick(e) {
 }
 
 // =========================================================================
-// MÉTODOS DE GERENCIAMENTO DE AUTENTICAÇÃO GOOGLE EM 2 ETAPAS
+// MÉTODOS DE GERENCIAMENTO DE AUTENTICAÇÃO GOOGLE EM 3 ETAPAS
 // =========================================================================
 
-const PRESCRIBERS_REGISTRY_KEY = 'guia_vacinal_prescribers_registry';
-let tempGoogleAuthData = { email: '', name: '', picture: '' };
 let googleClientId = '';
 
 function parseJwt(token) {
@@ -3745,6 +3882,9 @@ async function initGoogleAuth() {
             handleOAuthPopupCallbackSuccess(event.data);
         }
     });
+
+    // Verificar se usuário acessou por link de indicação
+    checkPendingReferral();
 }
 
 function setupGoogleIdentityServices() {
@@ -3843,9 +3983,9 @@ function handleOAuthPopupCallbackSuccess(data) {
 }
 
 function processVerifiedGoogleIdentity(email, name, picture) {
-    tempGoogleAuthData = { email, name, picture };
+    tempGoogleAuthData = { email: email.trim(), name: name.trim(), picture: picture || '' };
 
-    // Verificar se já possui conselho registrado
+    // 1. Verificar se já possui cadastro prévio como Profissional
     try {
         const regSaved = localStorage.getItem(PRESCRIBERS_REGISTRY_KEY);
         const registry = regSaved ? JSON.parse(regSaved) : {};
@@ -3854,16 +3994,22 @@ function processVerifiedGoogleIdentity(email, name, picture) {
         if (existingProf && existingProf.councilNumber) {
             googleAuthState = {
                 isLoggedIn: true,
+                userType: 'professional',
                 email: email,
                 name: existingProf.name || name,
-                avatar: picture || '🩺',
+                avatar: picture || existingProf.picture || '🩺',
                 roleTag: `${existingProf.councilType}/${existingProf.councilUf} ${existingProf.councilNumber}`,
                 councilType: existingProf.councilType,
                 councilUf: existingProf.councilUf,
                 councilNumber: existingProf.councilNumber,
-                cpf: existingProf.cpf,
+                cpf: existingProf.cpf || '',
                 companyName: existingProf.companyName || '',
-                companyCnpj: existingProf.companyCnpj || ''
+                companyCnpj: existingProf.companyCnpj || '',
+                birthDate: '',
+                referralCode: existingProf.referralCode || generateUserReferralCode(email),
+                bonusMonths: existingProf.bonusMonths || 0,
+                subscriptionExpiresAt: existingProf.subscriptionExpiresAt || '',
+                digitalSignature: existingProf.digitalSignature || ''
             };
             saveGoogleAuthState();
             syncGoogleDataToPrescriptionForm();
@@ -3871,10 +4017,43 @@ function processVerifiedGoogleIdentity(email, name, picture) {
             return;
         }
     } catch (e) {
-        console.warn('Erro ao verificar prescritores registrados:', e);
+        console.warn('Erro ao verificar registro de profissionais:', e);
     }
 
-    // Preenche a Etapa 2 de vinculação profissional
+    // 2. Verificar se já possui cadastro prévio como Paciente
+    try {
+        const patSaved = localStorage.getItem(PATIENTS_AUTH_REGISTRY_KEY);
+        const patRegistry = patSaved ? JSON.parse(patSaved) : {};
+        const existingPatient = patRegistry[email.toLowerCase()];
+
+        if (existingPatient && existingPatient.cpf) {
+            googleAuthState = {
+                isLoggedIn: true,
+                userType: 'patient',
+                email: email,
+                name: existingPatient.name || name,
+                avatar: picture || existingPatient.picture || '👤',
+                roleTag: 'Paciente Cadastrado',
+                councilType: '',
+                councilUf: '',
+                councilNumber: '',
+                cpf: existingPatient.cpf || '',
+                companyName: '',
+                companyCnpj: '',
+                birthDate: existingPatient.birthDate || '',
+                referralCode: existingPatient.referralCode || generateUserReferralCode(email),
+                bonusMonths: existingPatient.bonusMonths || 0,
+                subscriptionExpiresAt: existingPatient.subscriptionExpiresAt || ''
+            };
+            saveGoogleAuthState();
+            closeGoogleSignInModal();
+            return;
+        }
+    } catch (e) {
+        console.warn('Erro ao verificar registro de pacientes:', e);
+    }
+
+    // 3. Novo cadastro: Preenche o resumo da conta conectada na Etapa 2
     const step2Avatar = document.getElementById('step2Avatar');
     const step2Name = document.getElementById('step2Name');
     const step2Email = document.getElementById('step2Email');
@@ -3883,7 +4062,7 @@ function processVerifiedGoogleIdentity(email, name, picture) {
         if (picture) {
             step2Avatar.innerHTML = `<img src="${picture}" alt="Avatar Google" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`;
         } else {
-            step2Avatar.textContent = '🩺';
+            step2Avatar.textContent = '👤';
         }
     }
     if (step2Name) step2Name.textContent = name;
@@ -3941,6 +4120,7 @@ function fillDemoGoogleAccount() {
 
     googleAuthState = {
         isLoggedIn: true,
+        userType: 'professional',
         email: demoEmail,
         name: demoName,
         avatar: '🩺',
@@ -3950,7 +4130,11 @@ function fillDemoGoogleAccount() {
         councilNumber: '12345',
         cpf: '118.002.337-44',
         companyName: 'Consultório Farmacêutico Guia Vacinal',
-        companyCnpj: '11.800.233/0001-44'
+        companyCnpj: '11.800.233/0001-44',
+        birthDate: '',
+        referralCode: 'walace12',
+        bonusMonths: 1,
+        subscriptionExpiresAt: ''
     };
 
     saveGoogleAuthState();
@@ -3965,7 +4149,9 @@ function fillDemoGoogleAccount() {
             councilNumber: '12345',
             cpf: '118.002.337-44',
             companyName: 'Consultório Farmacêutico Guia Vacinal',
-            companyCnpj: '11.800.233/0001-44'
+            companyCnpj: '11.800.233/0001-44',
+            referralCode: 'walace12',
+            bonusMonths: 1
         };
         localStorage.setItem(PRESCRIBERS_REGISTRY_KEY, JSON.stringify(registry));
     } catch (err) {
@@ -3986,14 +4172,23 @@ function loadGoogleAuthState() {
             if (isCorruptedOrLegacy) {
                 localStorage.removeItem(GOOGLE_AUTH_STORAGE_KEY);
             } else if (parsed && parsed.isLoggedIn) {
-                googleAuthState = { ...googleAuthState, ...parsed, isLoggedIn: true };
-                if (googleAuthState.name) userSessionData.professionalName = googleAuthState.name;
-                if (googleAuthState.cpf) userSessionData.professionalCpf = googleAuthState.cpf;
-                if (googleAuthState.councilType) userSessionData.councilType = googleAuthState.councilType;
-                if (googleAuthState.councilUf) userSessionData.councilUf = googleAuthState.councilUf;
-                if (googleAuthState.councilNumber) userSessionData.councilNumber = googleAuthState.councilNumber;
-                if (googleAuthState.companyName) userSessionData.companyName = googleAuthState.companyName;
-                if (googleAuthState.companyCnpj) userSessionData.companyCnpj = googleAuthState.companyCnpj;
+                googleAuthState = {
+                    ...googleAuthState,
+                    ...parsed,
+                    isLoggedIn: true,
+                    referralCode: parsed.referralCode || generateUserReferralCode(parsed.email),
+                    bonusMonths: parsed.bonusMonths || 0
+                };
+                if (googleAuthState.name && googleAuthState.userType === 'professional') {
+                    userSessionData.professionalName = googleAuthState.name;
+                    userSessionData.professionalCpf = googleAuthState.cpf;
+                    userSessionData.councilType = googleAuthState.councilType;
+                    userSessionData.councilUf = googleAuthState.councilUf;
+                    userSessionData.councilNumber = googleAuthState.councilNumber;
+                    if (googleAuthState.companyName) userSessionData.companyName = googleAuthState.companyName;
+                    if (googleAuthState.companyCnpj) userSessionData.companyCnpj = googleAuthState.companyCnpj;
+                    if (googleAuthState.digitalSignature) userSessionData.digitalSignature = googleAuthState.digitalSignature;
+                }
             }
         }
     } catch (e) {
@@ -4024,6 +4219,7 @@ function updateGoogleAuthUI() {
     const dropdownUserName = document.getElementById('dropdownUserName');
     const dropdownUserEmail = document.getElementById('dropdownUserEmail');
     const dropdownUserRole = document.getElementById('dropdownUserRole');
+    const dropdownSubBadge = document.getElementById('dropdownSubBadge');
     const dropdownAvatar = document.getElementById('dropdownAvatar');
 
     const lockBadgeClinic = document.getElementById('lockBadgeClinic');
@@ -4036,7 +4232,7 @@ function updateGoogleAuthUI() {
     if (googleAuthState.isLoggedIn) {
         if (headerBtn) {
             headerBtn.classList.add('logged-in');
-            headerBtn.title = `Conectado como ${googleAuthState.name} (Clique para opções)`;
+            headerBtn.title = `Conectado como ${googleAuthState.name} (Clique para acessar seu menu)`;
         }
         if (headerLabel) {
             const shortName = (googleAuthState.name || '').split(' ')[0] || 'Conectado';
@@ -4044,13 +4240,25 @@ function updateGoogleAuthUI() {
         }
         if (dropdownUserName) dropdownUserName.textContent = googleAuthState.name;
         if (dropdownUserEmail) dropdownUserEmail.textContent = googleAuthState.email;
-        if (dropdownUserRole) dropdownUserRole.textContent = googleAuthState.roleTag || `${googleAuthState.councilType}/${googleAuthState.councilUf} ${googleAuthState.councilNumber}`;
+        
+        if (dropdownUserRole) {
+            if (googleAuthState.userType === 'patient') {
+                dropdownUserRole.textContent = '👤 Paciente Cadastrado';
+            } else {
+                dropdownUserRole.textContent = googleAuthState.roleTag || `${googleAuthState.councilType}/${googleAuthState.councilUf} ${googleAuthState.councilNumber}`;
+            }
+        }
+
+        if (dropdownSubBadge) {
+            const bonusText = (googleAuthState.bonusMonths > 0) ? ` (+${googleAuthState.bonusMonths}m bônus)` : '';
+            dropdownSubBadge.textContent = `⭐ Assinatura Ativa${bonusText}`;
+        }
         
         if (dropdownAvatar) {
             if (googleAuthState.avatar && googleAuthState.avatar.startsWith('http')) {
                 dropdownAvatar.innerHTML = `<img src="${googleAuthState.avatar}" alt="Avatar" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">`;
             } else {
-                dropdownAvatar.textContent = googleAuthState.avatar || '🩺';
+                dropdownAvatar.textContent = googleAuthState.avatar || (googleAuthState.userType === 'patient' ? '👤' : '🩺');
             }
         }
 
@@ -4067,7 +4275,7 @@ function updateGoogleAuthUI() {
             if (googleAuthState.avatar && googleAuthState.avatar.startsWith('http')) {
                 modalConnectedAvatar.innerHTML = `<img src="${googleAuthState.avatar}" alt="Avatar" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`;
             } else {
-                modalConnectedAvatar.textContent = googleAuthState.avatar || '🩺';
+                modalConnectedAvatar.textContent = googleAuthState.avatar || (googleAuthState.userType === 'patient' ? '👤' : '🩺');
             }
         }
         if (modalConnectedName) modalConnectedName.textContent = googleAuthState.name;
@@ -4075,7 +4283,7 @@ function updateGoogleAuthUI() {
     } else {
         if (headerBtn) {
             headerBtn.classList.remove('logged-in');
-            headerBtn.title = 'Login com Google para Prescrição Profissional';
+            headerBtn.title = 'Fazer Login com o Google';
         }
         if (headerLabel) {
             headerLabel.textContent = 'Entrar com Google';
@@ -4117,6 +4325,7 @@ function closeGoogleSignInModal() {
             document.body.style.overflow = '';
         }
     }
+    restoreRouteAfterModalClose();
 }
 
 function handleGoogleModalBackdropClick(e) {
@@ -4137,30 +4346,197 @@ function handleHeaderAuthClick() {
     }
 }
 
-// Navegação entre as 2 Etapas da Autenticação Google
+// Fechar dropdown ao clicar fora
+document.addEventListener('click', (e) => {
+    const headerBtn = document.getElementById('headerGoogleAuthBtn');
+    const dropdown = document.getElementById('authDropdownMenu');
+    if (dropdown && dropdown.style.display === 'flex') {
+        if (headerBtn && !headerBtn.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    }
+});
+
+// Navegação entre as 3 Etapas da Autenticação Google
 function goToGoogleStep(step) {
     const step1Pane = document.getElementById('googleAuthStep1');
     const step2Pane = document.getElementById('googleAuthStep2');
+    const step3ProfPane = document.getElementById('googleAuthStep3Prof');
+    const step3PatientPane = document.getElementById('googleAuthStep3Patient');
+
     const stepper1 = document.getElementById('stepperStep1');
     const stepper2 = document.getElementById('stepperStep2');
+    const stepper3 = document.getElementById('stepperStep3');
+
     const title = document.getElementById('googleModalTitle');
     const sub = document.getElementById('googleModalSubtitle');
 
+    // Esconde todos os painéis inicialmente
+    if (step1Pane) step1Pane.style.display = 'none';
+    if (step2Pane) step2Pane.style.display = 'none';
+    if (step3ProfPane) step3ProfPane.style.display = 'none';
+    if (step3PatientPane) step3PatientPane.style.display = 'none';
+
     if (step === 1) {
         if (step1Pane) step1Pane.style.display = 'block';
-        if (step2Pane) step2Pane.style.display = 'none';
         if (stepper1) stepper1.className = 'stepper-step active';
         if (stepper2) stepper2.className = 'stepper-step';
-        if (title) title.textContent = 'Fazer login com o Google';
-        if (sub) sub.textContent = 'Etapa 1 de 2: Autenticação de identidade da Conta Google.';
+        if (stepper3) stepper3.className = 'stepper-step';
+        if (title) title.textContent = 'Login com o Google';
+        if (sub) sub.textContent = '';
     } else if (step === 2) {
-        if (step1Pane) step1Pane.style.display = 'none';
         if (step2Pane) step2Pane.style.display = 'block';
         if (stepper1) stepper1.className = 'stepper-step completed';
         if (stepper2) stepper2.className = 'stepper-step active';
-        if (title) title.textContent = 'Registro Profissional de Saúde';
-        if (sub) sub.textContent = 'Etapa 2 de 2: Vincule seu conselho para validação da prescrição.';
+        if (stepper3) stepper3.className = 'stepper-step';
+        if (title) title.textContent = 'Selecione seu Perfil';
+        if (sub) sub.textContent = '';
+    } else if (step === '3prof' || (step === 3 && currentRegistrationRole === 'professional')) {
+        if (step3ProfPane) step3ProfPane.style.display = 'block';
+        if (stepper1) stepper1.className = 'stepper-step completed';
+        if (stepper2) stepper2.className = 'stepper-step completed';
+        if (stepper3) stepper3.className = 'stepper-step active';
+        if (title) title.textContent = 'Inscrição Profissional';
+        if (sub) sub.textContent = '';
+    } else if (step === '3patient' || (step === 3 && currentRegistrationRole === 'patient')) {
+        if (step3PatientPane) step3PatientPane.style.display = 'block';
+        if (stepper1) stepper1.className = 'stepper-step completed';
+        if (stepper2) stepper2.className = 'stepper-step completed';
+        if (stepper3) stepper3.className = 'stepper-step active';
+        if (title) title.textContent = 'Identificação do Paciente';
+        if (sub) sub.textContent = '';
     }
+}
+
+// Escolha do perfil de acesso (Profissional vs Paciente) na Etapa 2
+function selectLoginProfileRole(role) {
+    currentRegistrationRole = role;
+
+    if (role === 'professional') {
+        const profAvatar = document.getElementById('step3ProfAvatar');
+        const profName = document.getElementById('step3ProfName');
+        const profEmail = document.getElementById('step3ProfEmail');
+        const profFullNameInput = document.getElementById('step3ProfFullName');
+
+        if (profAvatar) {
+            if (tempGoogleAuthData.picture) {
+                profAvatar.innerHTML = `<img src="${tempGoogleAuthData.picture}" alt="Avatar Google" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`;
+            } else {
+                profAvatar.textContent = '🩺';
+            }
+        }
+        if (profName) profName.textContent = 'Profissional de Saúde';
+        if (profEmail) profEmail.textContent = tempGoogleAuthData.email || '';
+
+        // Não utilizar o nome vinculado ao e-mail automaticamente (pode ser apelido ou incompleto)
+        if (profFullNameInput) {
+            try {
+                const regSaved = localStorage.getItem(PRESCRIBERS_REGISTRY_KEY);
+                const registry = regSaved ? JSON.parse(regSaved) : {};
+                const existingProf = registry[(tempGoogleAuthData.email || '').toLowerCase()];
+                if (existingProf && existingProf.name) {
+                    profFullNameInput.value = existingProf.name;
+                } else if (!profFullNameInput.value) {
+                    profFullNameInput.value = '';
+                }
+            } catch (e) {
+                profFullNameInput.value = '';
+            }
+        }
+
+        // Pré-selecionar o conselho atual (padrão CRF ou CRM)
+        const currentCouncil = document.getElementById('step3ProfCouncil')?.value || 'CRM';
+        selectCouncilPill(currentCouncil);
+
+        goToGoogleStep('3prof');
+
+        // Inicializar canvas de assinatura digital para o profissional
+        setTimeout(() => {
+            initSignaturePad('step3ProfSignatureCanvas');
+        }, 120);
+    } else {
+        const patAvatar = document.getElementById('step3PatientAvatar');
+        const patName = document.getElementById('step3PatientName');
+        const patEmail = document.getElementById('step3PatientEmail');
+        const patFullNameInput = document.getElementById('step3PatientFullName');
+
+        if (patAvatar) {
+            if (tempGoogleAuthData.picture) {
+                patAvatar.innerHTML = `<img src="${tempGoogleAuthData.picture}" alt="Avatar Google" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`;
+            } else {
+                patAvatar.textContent = '👤';
+            }
+        }
+        if (patName) patName.textContent = 'Paciente';
+        if (patEmail) patEmail.textContent = tempGoogleAuthData.email || '';
+
+        // Não utilizar o nome vinculado ao e-mail automaticamente (exigir nome e sobrenome)
+        if (patFullNameInput) {
+            try {
+                const patSaved = localStorage.getItem(PATIENTS_AUTH_REGISTRY_KEY);
+                const patRegistry = patSaved ? JSON.parse(patSaved) : {};
+                const existingPatient = patRegistry[(tempGoogleAuthData.email || '').toLowerCase()];
+                if (existingPatient && existingPatient.name) {
+                    patFullNameInput.value = existingPatient.name;
+                } else if (!patFullNameInput.value) {
+                    patFullNameInput.value = '';
+                }
+            } catch (e) {
+                patFullNameInput.value = '';
+            }
+        }
+
+        goToGoogleStep('3patient');
+    }
+}
+
+// Seleção visual em pills dos conselhos profissionais (CRM, CRF, COREN)
+function selectCouncilPill(council) {
+    const inputCouncil = document.getElementById('step3ProfCouncil');
+    if (inputCouncil) inputCouncil.value = council;
+
+    ['CRM', 'CRF', 'COREN'].forEach(c => {
+        const pill = document.getElementById('pill' + c);
+        if (pill) {
+            if (c === council) {
+                pill.classList.add('active');
+            } else {
+                pill.classList.remove('active');
+            }
+        }
+    });
+}
+
+// Cálculo dinâmico da idade e categoria do paciente ao alterar a data de nascimento
+function handlePatientBirthDateChange(dateStr) {
+    const feedbackEl = document.getElementById('patientAgeFeedback');
+    const categoryEl = document.getElementById('patientCalculatedCategory');
+    if (!feedbackEl || !categoryEl || !dateStr) {
+        if (feedbackEl) feedbackEl.style.display = 'none';
+        return;
+    }
+
+    const birth = new Date(dateStr + 'T00:00:00');
+    const now = new Date();
+    if (isNaN(birth.getTime())) {
+        feedbackEl.style.display = 'none';
+        return;
+    }
+
+    let ageYears = now.getFullYear() - birth.getFullYear();
+    const m = now.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
+        ageYears--;
+    }
+
+    let category = 'Adulto (20 a 59 anos)';
+    if (ageYears < 2) category = 'Lactente / Bebê (0 a 19 meses)';
+    else if (ageYears < 10) category = 'Criança (2 a 9 anos)';
+    else if (ageYears < 20) category = 'Adolescente (10 a 19 anos)';
+    else if (ageYears >= 60) category = 'Idoso (60+ anos)';
+
+    categoryEl.textContent = `${category} • ${ageYears >= 1 ? ageYears + ' anos' : 'Menor de 1 ano'}`;
+    feedbackEl.style.display = 'flex';
 }
 
 // Submissão da Etapa 1: Autenticação Google
@@ -4175,70 +4551,59 @@ function handleGoogleStep1Submit(e) {
         return;
     }
 
-    tempGoogleAuthData = { email, name, picture: '' };
-
-    // Verifica se este prescritor já possui registro de conselho salvo no dispositivo
-    try {
-        const regSaved = localStorage.getItem(PRESCRIBERS_REGISTRY_KEY);
-        const registry = regSaved ? JSON.parse(regSaved) : {};
-        const existingProf = registry[email.toLowerCase()];
-
-        if (existingProf && existingProf.councilNumber) {
-            // Login imediato: já possui conselho registrado anteriormente
-            googleAuthState = {
-                isLoggedIn: true,
-                email: email,
-                name: name,
-                avatar: '🩺',
-                roleTag: `${existingProf.councilType}/${existingProf.councilUf} ${existingProf.councilNumber}`,
-                councilType: existingProf.councilType,
-                councilUf: existingProf.councilUf,
-                councilNumber: existingProf.councilNumber,
-                cpf: existingProf.cpf,
-                companyName: existingProf.companyName || '',
-                companyCnpj: existingProf.companyCnpj || ''
-            };
-            saveGoogleAuthState();
-            syncGoogleDataToPrescriptionForm();
-            closeGoogleSignInModal();
-            return;
-        }
-    } catch (err) {
-        console.warn('Erro ao verificar registro de prescritores:', err);
-    }
-
-    // Se não tem conselho registrado, preenche os dados do Passo 2 e avança
-    const step2Avatar = document.getElementById('step2Avatar');
-    const step2Name = document.getElementById('step2Name');
-    const step2Email = document.getElementById('step2Email');
-
-    if (step2Avatar) step2Avatar.textContent = '🩺';
-    if (step2Name) step2Name.textContent = name;
-    if (step2Email) step2Email.textContent = email;
-
-    goToGoogleStep(2);
+    processVerifiedGoogleIdentity(email, name, '');
 }
 
-// Submissão da Etapa 2: Registro Profissional no Conselho
-function handleGoogleStep2Submit(e) {
+// Submissão da Etapa 3 - Profissional: CRM, CRF, COREN, UF, Inscrição, CPF, Nome e Sobrenome e Assinatura Digital
+function handleGoogleStep3ProfSubmit(e) {
     if (e) e.preventDefault();
 
-    const council = document.getElementById('step2Council').value;
-    const uf = document.getElementById('step2Uf').value;
-    const number = document.getElementById('step2Number').value.trim();
-    const cpf = document.getElementById('step2Cpf').value.trim();
-    const est = document.getElementById('step2Establishment').value.trim();
-    const cnpj = document.getElementById('step2Cnpj').value.trim();
+    const fullName = document.getElementById('step3ProfFullName') ? document.getElementById('step3ProfFullName').value.trim() : '';
+    const council = document.getElementById('step3ProfCouncil').value || 'CRF';
+    const uf = document.getElementById('step3ProfUf').value;
+    const number = document.getElementById('step3ProfNumber').value.trim();
+    const cpf = document.getElementById('step3ProfCpf').value.trim();
+    const est = document.getElementById('step3ProfEstablishment').value.trim();
 
-    if (!number || !cpf) {
-        alert('Por favor, informe o número de inscrição no conselho e seu CPF.');
+    // 1. Validação de Nome e Sobrenome (mínimo dois nomes)
+    const nameParts = fullName.split(/\s+/).filter(Boolean);
+    if (nameParts.length < 2) {
+        alert('É obrigatório preencher seu nome e sobrenome completos (mínimo dois nomes). Por favor, informe seu nome corretamente.');
+        const inputName = document.getElementById('step3ProfFullName');
+        if (inputName) inputName.focus();
         return;
     }
 
+    if (!number || !cpf) {
+        alert('Por favor, informe o número de inscrição no conselho e seu CPF para validação técnica.');
+        return;
+    }
+
+    // 2. Validação da Assinatura Digital do Prescritor
+    let digitalSignature = googleAuthState.digitalSignature || '';
+    const isNewSignatureDrawn = !isSignatureCanvasEmpty('step3ProfSignatureCanvas');
+
+    if (isNewSignatureDrawn) {
+        const sigCanvas = document.getElementById('step3ProfSignatureCanvas');
+        if (sigCanvas) {
+            digitalSignature = sigCanvas.toDataURL('image/png');
+        }
+    }
+
+    if (!digitalSignature) {
+        alert('É obrigatório desenhar sua assinatura digital no quadro antes de concluir o cadastro.');
+        return;
+    }
+
+    // Aplica bônus de indicação se o usuário acessou por link de redirecionamento (?ref=...)
+    const referralBonus = applyPendingReferralBonus(tempGoogleAuthData.email);
+    const myReferralCode = generateUserReferralCode(tempGoogleAuthData.email);
+
     googleAuthState = {
         isLoggedIn: true,
+        userType: 'professional',
         email: tempGoogleAuthData.email,
-        name: tempGoogleAuthData.name,
+        name: fullName,
         avatar: tempGoogleAuthData.picture || '🩺',
         roleTag: `${council}/${uf} ${number}`,
         councilType: council,
@@ -4246,7 +4611,12 @@ function handleGoogleStep2Submit(e) {
         councilNumber: number,
         cpf: cpf,
         companyName: est,
-        companyCnpj: cnpj
+        companyCnpj: '',
+        birthDate: '',
+        referralCode: myReferralCode,
+        bonusMonths: referralBonus,
+        subscriptionExpiresAt: '',
+        digitalSignature: digitalSignature
     };
 
     saveGoogleAuthState();
@@ -4256,14 +4626,17 @@ function handleGoogleStep2Submit(e) {
         const regSaved = localStorage.getItem(PRESCRIBERS_REGISTRY_KEY);
         const registry = regSaved ? JSON.parse(regSaved) : {};
         registry[tempGoogleAuthData.email.toLowerCase()] = {
-            name: tempGoogleAuthData.name,
+            name: fullName,
             councilType: council,
             councilUf: uf,
             councilNumber: number,
             cpf: cpf,
             companyName: est,
-            companyCnpj: cnpj,
-            picture: tempGoogleAuthData.picture || ''
+            companyCnpj: '',
+            picture: tempGoogleAuthData.picture || '',
+            referralCode: myReferralCode,
+            bonusMonths: referralBonus,
+            digitalSignature: digitalSignature
         };
         localStorage.setItem(PRESCRIBERS_REGISTRY_KEY, JSON.stringify(registry));
     } catch (err) {
@@ -4272,6 +4645,132 @@ function handleGoogleStep2Submit(e) {
 
     syncGoogleDataToPrescriptionForm();
     closeGoogleSignInModal();
+
+    if (referralBonus > 0) {
+        alert(`🎉 Parabéns, Dr(a). ${fullName}!\nSeu cadastro foi realizado com sucesso pelo link de indicação e você ganhou 1 mês grátis de assinatura PRO.`);
+    }
+}
+
+// Submissão da Etapa 3 - Paciente: Nome e Sobrenome, Data de Nascimento e CPF
+function handleGoogleStep3PatientSubmit(e) {
+    if (e) e.preventDefault();
+
+    const fullName = document.getElementById('step3PatientFullName').value.trim();
+    const birthDate = document.getElementById('step3PatientBirthDate').value;
+    const cpf = document.getElementById('step3PatientCpf').value.trim();
+
+    // Validação de Nome e Sobrenome (mínimo dois nomes)
+    const nameParts = fullName.split(/\s+/).filter(Boolean);
+    if (nameParts.length < 2) {
+        alert('É obrigatório preencher seu nome e sobrenome completos (mínimo dois nomes). Por favor, informe seu nome corretamente.');
+        const inputName = document.getElementById('step3PatientFullName');
+        if (inputName) inputName.focus();
+        return;
+    }
+
+    if (!fullName || !birthDate || !cpf) {
+        alert('Por favor, preencha seu nome e sobrenome completos, data de nascimento e CPF.');
+        return;
+    }
+
+    // Aplica bônus de indicação se o paciente acessou por link de redirecionamento (?ref=...)
+    const referralBonus = applyPendingReferralBonus(tempGoogleAuthData.email);
+    const myReferralCode = generateUserReferralCode(tempGoogleAuthData.email);
+
+    googleAuthState = {
+        isLoggedIn: true,
+        userType: 'patient',
+        email: tempGoogleAuthData.email,
+        name: fullName,
+        avatar: tempGoogleAuthData.picture || '👤',
+        roleTag: 'Paciente Cadastrado',
+        councilType: '',
+        councilUf: '',
+        councilNumber: '',
+        cpf: cpf,
+        companyName: '',
+        companyCnpj: '',
+        birthDate: birthDate,
+        referralCode: myReferralCode,
+        bonusMonths: referralBonus,
+        subscriptionExpiresAt: '',
+        digitalSignature: ''
+    };
+
+    saveGoogleAuthState();
+
+    // Salva no registro de pacientes indexado pelo e-mail
+    try {
+        const patSaved = localStorage.getItem(PATIENTS_AUTH_REGISTRY_KEY);
+        const patRegistry = patSaved ? JSON.parse(patSaved) : {};
+        patRegistry[tempGoogleAuthData.email.toLowerCase()] = {
+            name: fullName,
+            cpf: cpf,
+            birthDate: birthDate,
+            picture: tempGoogleAuthData.picture || '',
+            referralCode: myReferralCode,
+            bonusMonths: referralBonus
+        };
+        localStorage.setItem(PATIENTS_AUTH_REGISTRY_KEY, JSON.stringify(patRegistry));
+    } catch (err) {
+        console.warn('Erro ao salvar registro de paciente:', err);
+    }
+
+    closeGoogleSignInModal();
+
+    if (referralBonus > 0) {
+        alert(`🎉 Bem-vindo(a), ${fullName}!\nSeu cadastro foi realizado com sucesso pelo link de indicação e você ganhou 1 mês grátis de acesso.`);
+    }
+}
+
+// Abertura do modal para atualizar dados cadastrais pós-login
+function openEditUserDataModal() {
+    const dropdown = document.getElementById('authDropdownMenu');
+    if (dropdown) dropdown.style.display = 'none';
+
+    syncUrlPath('/PERFIL/MEU CADASTRO');
+
+    if (!googleAuthState.isLoggedIn) {
+        openGoogleSignInModal();
+        return;
+    }
+
+    tempGoogleAuthData = {
+        email: googleAuthState.email,
+        name: googleAuthState.name,
+        picture: googleAuthState.avatar && googleAuthState.avatar.startsWith('http') ? googleAuthState.avatar : ''
+    };
+
+    const modal = document.getElementById('googleSignInModal');
+    if (modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+
+        if (googleAuthState.userType === 'professional') {
+            currentRegistrationRole = 'professional';
+            // Preenche dados atuais nos campos
+            if (document.getElementById('step3ProfFullName')) document.getElementById('step3ProfFullName').value = googleAuthState.name || '';
+            if (document.getElementById('step3ProfCouncil')) document.getElementById('step3ProfCouncil').value = googleAuthState.councilType || 'CRF';
+            if (document.getElementById('step3ProfUf')) document.getElementById('step3ProfUf').value = googleAuthState.councilUf || 'RJ';
+            if (document.getElementById('step3ProfNumber')) document.getElementById('step3ProfNumber').value = googleAuthState.councilNumber || '';
+            if (document.getElementById('step3ProfCpf')) document.getElementById('step3ProfCpf').value = googleAuthState.cpf || '';
+            if (document.getElementById('step3ProfEstablishment')) document.getElementById('step3ProfEstablishment').value = googleAuthState.companyName || '';
+            selectCouncilPill(googleAuthState.councilType || 'CRF');
+            goToGoogleStep('3prof');
+            setTimeout(() => {
+                initSignaturePad('step3ProfSignatureCanvas');
+            }, 120);
+        } else {
+            currentRegistrationRole = 'patient';
+            if (document.getElementById('step3PatientFullName')) document.getElementById('step3PatientFullName').value = googleAuthState.name || '';
+            if (document.getElementById('step3PatientBirthDate')) {
+                document.getElementById('step3PatientBirthDate').value = googleAuthState.birthDate || '';
+                handlePatientBirthDateChange(googleAuthState.birthDate || '');
+            }
+            if (document.getElementById('step3PatientCpf')) document.getElementById('step3PatientCpf').value = googleAuthState.cpf || '';
+            goToGoogleStep('3patient');
+        }
+    }
 }
 
 function syncGoogleDataToPrescriptionForm() {
@@ -4298,11 +4797,13 @@ function syncGoogleDataToPrescriptionForm() {
     userSessionData.councilNumber = googleAuthState.councilNumber;
     if (googleAuthState.companyName) userSessionData.companyName = googleAuthState.companyName;
     if (googleAuthState.companyCnpj) userSessionData.companyCnpj = googleAuthState.companyCnpj;
+    if (googleAuthState.digitalSignature) userSessionData.digitalSignature = googleAuthState.digitalSignature;
 }
 
 function triggerGoogleLogout() {
     googleAuthState = {
         isLoggedIn: false,
+        userType: 'professional',
         email: '',
         name: '',
         avatar: '👤',
@@ -4312,7 +4813,11 @@ function triggerGoogleLogout() {
         councilNumber: '',
         cpf: '',
         companyName: '',
-        companyCnpj: ''
+        companyCnpj: '',
+        birthDate: '',
+        referralCode: '',
+        bonusMonths: 0,
+        subscriptionExpiresAt: ''
     };
     saveGoogleAuthState();
 
@@ -4329,6 +4834,276 @@ function triggerGoogleLogout() {
 
     if (typeof currentModalRole !== 'undefined') {
         selectUserRole(currentModalRole);
+    }
+}
+
+// =========================================================================
+// SISTEMA DE INDICAÇÃO (LINK DE REDIRECIONAMENTO COM 1 MÊS GRÁTIS POR NOVO CADASTRO)
+// =========================================================================
+
+function generateUserReferralCode(email) {
+    if (!email) return 'guia-' + Math.floor(1000 + Math.random() * 9000);
+    const prefix = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 10);
+    return prefix || 'ref' + Math.floor(1000 + Math.random() * 9000);
+}
+
+function getUserReferralLink() {
+    const code = googleAuthState.referralCode || generateUserReferralCode(googleAuthState.email);
+    const origin = window.location.origin || 'https://vacinas.walacemendes.com.br';
+    return `${origin}/?ref=${encodeURIComponent(code)}`;
+}
+
+function getReferralStats(code) {
+    if (!code) return { count: 0, bonusMonths: 0 };
+    try {
+        const db = JSON.parse(localStorage.getItem(REFERRALS_DB_KEY) || '{}');
+        const entry = db[code.toLowerCase()] || { count: 0, referredEmails: [] };
+        return {
+            count: entry.count || 0,
+            bonusMonths: entry.count || 0
+        };
+    } catch (e) {
+        return { count: 0, bonusMonths: 0 };
+    }
+}
+
+function applyPendingReferralBonus(newUserEmail) {
+    try {
+        const pendingRef = localStorage.getItem('guia_vacinal_pending_ref');
+        if (!pendingRef) return 0;
+
+        const myCode = generateUserReferralCode(newUserEmail);
+        if (pendingRef.toLowerCase() === myCode.toLowerCase()) {
+            localStorage.removeItem('guia_vacinal_pending_ref');
+            return 0; // Auto-indicação ignorada
+        }
+
+        const db = JSON.parse(localStorage.getItem(REFERRALS_DB_KEY) || '{}');
+        const refKey = pendingRef.toLowerCase();
+
+        if (!db[refKey]) {
+            db[refKey] = { count: 0, referredEmails: [] };
+        }
+
+        if (!db[refKey].referredEmails.includes(newUserEmail.toLowerCase())) {
+            db[refKey].count = (db[refKey].count || 0) + 1;
+            db[refKey].referredEmails.push(newUserEmail.toLowerCase());
+            localStorage.setItem(REFERRALS_DB_KEY, JSON.stringify(db));
+
+            // Atualiza também os bônus do prescritor que indicou, se estiver no mesmo navegador
+            const regSaved = localStorage.getItem(PRESCRIBERS_REGISTRY_KEY);
+            if (regSaved) {
+                const reg = JSON.parse(regSaved);
+                for (const key in reg) {
+                    if (reg[key].referralCode && reg[key].referralCode.toLowerCase() === refKey) {
+                        reg[key].bonusMonths = (reg[key].bonusMonths || 0) + 1;
+                    }
+                }
+                localStorage.setItem(PRESCRIBERS_REGISTRY_KEY, JSON.stringify(reg));
+            }
+        }
+
+        localStorage.removeItem('guia_vacinal_pending_ref');
+        return 1; // +1 mês concedido ao novo usuário!
+    } catch (e) {
+        console.warn('Erro ao aplicar bônus de indicação:', e);
+        return 0;
+    }
+}
+
+// Verifica na inicialização da página se o visitante chegou através de um link de indicação (?ref=...)
+function checkPendingReferral() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const ref = params.get('ref');
+        if (ref && ref.trim()) {
+            localStorage.setItem('guia_vacinal_pending_ref', ref.trim());
+            
+            // Exibir notificação amigável na tela inicial
+            setTimeout(() => {
+                const toast = document.createElement('div');
+                toast.className = 'referral-toast-alert';
+                toast.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:0.75rem;">
+                        <span style="font-size:1.4rem;">🎁</span>
+                        <div>
+                            <strong style="display:block;font-size:0.85rem;color:#0b57d0;">Você foi indicado por um colega!</strong>
+                            <span style="font-size:0.75rem;color:#475569;">Cadastre-se com sua Conta Google para ganhar <strong>1 mês grátis de assinatura</strong>.</span>
+                        </div>
+                    </div>
+                    <button type="button" onclick="openGoogleSignInModal(); this.parentElement.remove();" style="background:#0b57d0;color:#fff;border:none;padding:0.4rem 0.8rem;border-radius:6px;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;">Cadastrar Agora</button>
+                    <button type="button" onclick="this.parentElement.remove();" style="background:transparent;border:none;color:#94a3b8;font-size:1rem;cursor:pointer;padding:0 0.3rem;">✕</button>
+                `;
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 24px;
+                    right: 24px;
+                    z-index: 99999;
+                    background: #ffffff;
+                    border: 1.5px solid #0b57d0;
+                    border-radius: 12px;
+                    padding: 0.85rem 1.15rem;
+                    box-shadow: 0 10px 30px rgba(11, 87, 208, 0.25);
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    max-width: 460px;
+                    animation: slideUp 0.3s ease;
+                `;
+                document.body.appendChild(toast);
+            }, 1000);
+        }
+    } catch (e) {
+        console.warn('Erro ao verificar parâmetros de indicação:', e);
+    }
+}
+
+// Modal de Indique e Ganhe
+function openReferralModal() {
+    const dropdown = document.getElementById('authDropdownMenu');
+    if (dropdown) dropdown.style.display = 'none';
+
+    if (!googleAuthState.isLoggedIn) {
+        openGoogleSignInModal();
+        return;
+    }
+
+    const modal = document.getElementById('referralModal');
+    if (modal) {
+        const link = getUserReferralLink();
+        const input = document.getElementById('userReferralLinkInput');
+        if (input) input.value = link;
+
+        // Atualizar estatísticas
+        const code = googleAuthState.referralCode || generateUserReferralCode(googleAuthState.email);
+        const stats = getReferralStats(code);
+        const countEl = document.getElementById('referralCountVal');
+        const monthsEl = document.getElementById('referralMonthsBonusVal');
+
+        if (countEl) countEl.textContent = stats.count;
+        if (monthsEl) monthsEl.textContent = `+${stats.bonusMonths + (googleAuthState.bonusMonths || 0)} meses`;
+
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeReferralModal() {
+    const modal = document.getElementById('referralModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+function handleReferralModalBackdropClick(e) {
+    if (e.target.id === 'referralModal') {
+        closeReferralModal();
+    }
+}
+
+function copyUserReferralLink() {
+    const input = document.getElementById('userReferralLinkInput');
+    const btn = document.getElementById('btnCopyReferralLink');
+    const textSpan = document.getElementById('copyReferralText');
+    const iconSpan = document.getElementById('copyReferralIcon');
+
+    if (!input) return;
+
+    input.select();
+    input.setSelectionRange(0, 99999);
+
+    const link = input.value;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(() => {
+            showCopySuccess(btn, textSpan, iconSpan);
+        }).catch(() => {
+            document.execCommand('copy');
+            showCopySuccess(btn, textSpan, iconSpan);
+        });
+    } else {
+        document.execCommand('copy');
+        showCopySuccess(btn, textSpan, iconSpan);
+    }
+}
+
+function showCopySuccess(btn, textSpan, iconSpan) {
+    if (textSpan) textSpan.textContent = 'Copiado!';
+    if (iconSpan) iconSpan.textContent = '✓';
+    if (btn) btn.classList.add('copied');
+
+    setTimeout(() => {
+        if (textSpan) textSpan.textContent = 'Copiar Link';
+        if (iconSpan) iconSpan.textContent = '📋';
+        if (btn) btn.classList.remove('copied');
+    }, 2500);
+}
+
+function shareReferralOnWhatsApp() {
+    const link = getUserReferralLink();
+    const text = `Olá! Conheça a plataforma Guia Vacinal para prescrição de imunobiológicos e calendários SBIm/PNI. Cadastre-se pelo meu link com a Conta Google e nós dois ganhamos 1 mês grátis de assinatura PRO:\n\n${link}`;
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+}
+
+function shareReferralWebAPI() {
+    const link = getUserReferralLink();
+    if (navigator.share) {
+        navigator.share({
+            title: 'Guia Vacinal - Indique e Ganhe 1 Mês Grátis',
+            text: 'Cadastre-se na plataforma Guia Vacinal pelo meu link e ganhe 1 mês grátis de acesso PRO!',
+            url: link
+        }).catch(() => {});
+    } else {
+        copyUserReferralLink();
+    }
+}
+
+// Modal de Gestão de Assinatura
+function openSubscriptionModal() {
+    const dropdown = document.getElementById('authDropdownMenu');
+    if (dropdown) dropdown.style.display = 'none';
+
+    if (!googleAuthState.isLoggedIn) {
+        openGoogleSignInModal();
+        return;
+    }
+
+    const modal = document.getElementById('subscriptionModal');
+    if (modal) {
+        const planTitle = document.getElementById('subPlanTitle');
+        const statusVal = document.getElementById('subStatusVal');
+        const expirationVal = document.getElementById('subExpirationVal');
+        const bonusVal = document.getElementById('subBonusVal');
+
+        const bonus = googleAuthState.bonusMonths || 0;
+        const totalDays = 30 + (bonus * 30);
+
+        if (planTitle) {
+            planTitle.textContent = googleAuthState.userType === 'patient' 
+                ? 'Plano Paciente & Família PRO' 
+                : 'Plano Profissional Prescritor PRO';
+        }
+        if (statusVal) statusVal.textContent = 'Ativo (Acesso Ilimitado)';
+        if (expirationVal) expirationVal.textContent = `${totalDays} dias restantes`;
+        if (bonusVal) bonusVal.textContent = `+${bonus} ${bonus === 1 ? 'mês' : 'meses'} grátis`;
+
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeSubscriptionModal() {
+    const modal = document.getElementById('subscriptionModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+function handleSubscriptionModalBackdropClick(e) {
+    if (e.target.id === 'subscriptionModal') {
+        closeSubscriptionModal();
     }
 }
 
@@ -4434,6 +5209,7 @@ function recordCurrentPrescriptionToHistory(pendingList) {
         professionalCpf: userSessionData.professionalCpf,
         companyName: userSessionData.companyName || '',
         companyCnpj: userSessionData.companyCnpj || '',
+        digitalSignature: userSessionData.digitalSignature || googleAuthState.digitalSignature || '',
         vaccines: (pendingList || []).map(item => ({
             nome: item.vac.nome,
             posologia: item.posologia,
@@ -4468,6 +5244,8 @@ function openHistoryModal(tab = 'prescriptions') {
     const dropdown = document.getElementById('authDropdownMenu');
     if (dropdown) dropdown.style.display = 'none';
 
+    syncUrlPath('/PERFIL/HISTORICO');
+
     updateHistoryCounters();
     switchHistoryTab(tab);
 
@@ -4481,6 +5259,7 @@ function closeHistoryModal() {
         modal.classList.remove('active');
         document.body.style.overflow = '';
     }
+    restoreRouteAfterModalClose();
 }
 
 function handleHistoryModalBackdropClick(e) {
@@ -4656,6 +5435,9 @@ function reopenPrescriptionFromHistory(id) {
     userSessionData.companyName = item.companyName;
     userSessionData.companyCnpj = item.companyCnpj;
     userSessionData.role = item.role || 'professional';
+    if (item.digitalSignature) {
+        userSessionData.digitalSignature = item.digitalSignature;
+    }
 
     closeHistoryModal();
     renderCurrentDocument();
@@ -4851,19 +5633,282 @@ function handlePagBankCardSubmit(e) {
     }, 1500);
 }
 
+// =========================================================================
+// GESTÃO DE ASSINATURA DIGITAL (PAD EM CANVAS TOUCH/MOUSE & PRESCRIÇÃO)
+// =========================================================================
+const signaturePadInstances = {};
+
+function initSignaturePad(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Resolução ajustada ao devicePixelRatio para desenho nítido em telas retina
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width || 440;
+    const height = rect.height || 140;
+
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
+    ctx.scale(ratio, ratio);
+
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#0f172a';
+
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    function getCoords(e) {
+        const cRect = canvas.getBoundingClientRect();
+        let clientX = e.clientX;
+        let clientY = e.clientY;
+
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else if (e.changedTouches && e.changedTouches.length > 0) {
+            clientX = e.changedTouches[0].clientX;
+            clientY = e.changedTouches[0].clientY;
+        }
+
+        return {
+            x: clientX - cRect.left,
+            y: clientY - cRect.top
+        };
+    }
+
+    function startDrawing(e) {
+        if (e.type.startsWith('touch')) {
+            e.preventDefault();
+        }
+        isDrawing = true;
+        const coords = getCoords(e);
+        lastX = coords.x;
+        lastY = coords.y;
+
+        ctx.beginPath();
+        ctx.arc(lastX, lastY, ctx.lineWidth / 2, 0, Math.PI * 2);
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.fill();
+        canvas.dataset.hasStrokes = 'true';
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+        if (e.type.startsWith('touch')) {
+            e.preventDefault();
+        }
+        const coords = getCoords(e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(coords.x, coords.y);
+        ctx.stroke();
+
+        lastX = coords.x;
+        lastY = coords.y;
+        canvas.dataset.hasStrokes = 'true';
+    }
+
+    function stopDrawing(e) {
+        if (!isDrawing) return;
+        isDrawing = false;
+    }
+
+    // Remove listeners antigos se houver
+    if (signaturePadInstances[canvasId]) {
+        const old = signaturePadInstances[canvasId];
+        canvas.removeEventListener('mousedown', old.start);
+        canvas.removeEventListener('mousemove', old.draw);
+        canvas.removeEventListener('mouseup', old.stop);
+        canvas.removeEventListener('mouseleave', old.stop);
+        canvas.removeEventListener('touchstart', old.start);
+        canvas.removeEventListener('touchmove', old.draw);
+        canvas.removeEventListener('touchend', old.stop);
+        canvas.removeEventListener('touchcancel', old.stop);
+    }
+
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseleave', stopDrawing);
+
+    canvas.addEventListener('touchstart', startDrawing, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', stopDrawing, { passive: false });
+    canvas.addEventListener('touchcancel', stopDrawing, { passive: false });
+
+    signaturePadInstances[canvasId] = {
+        start: startDrawing,
+        draw: draw,
+        stop: stopDrawing
+    };
+
+    canvas.dataset.hasStrokes = 'false';
+}
+
+function clearSignatureCanvas(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    canvas.dataset.hasStrokes = 'false';
+}
+
+function isSignatureCanvasEmpty(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return true;
+    return canvas.dataset.hasStrokes !== 'true';
+}
+
+// Modal de Assinatura Digital aberto pelo menu "ASSINATURA DIGITAL"
+function openSignatureModal() {
+    const dropdown = document.getElementById('authDropdownMenu');
+    if (dropdown) dropdown.style.display = 'none';
+
+    syncUrlPath('/PERFIL/ASSINATURA');
+
+    if (!googleAuthState.isLoggedIn) {
+        openGoogleSignInModal();
+        return;
+    }
+
+    const modal = document.getElementById('signatureModal');
+    if (!modal) return;
+
+    const currentCard = document.getElementById('modalCurrentSignatureCard');
+    const previewImg = document.getElementById('modalSavedSignaturePreview');
+
+    if (googleAuthState.digitalSignature && previewImg && currentCard) {
+        previewImg.src = googleAuthState.digitalSignature;
+        currentCard.style.display = 'block';
+    } else if (currentCard) {
+        currentCard.style.display = 'none';
+    }
+
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    setTimeout(() => {
+        initSignaturePad('modalSignatureCanvas');
+        clearSignatureCanvas('modalSignatureCanvas');
+    }, 120);
+}
+
+function closeSignatureModal() {
+    const modal = document.getElementById('signatureModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    restoreRouteAfterModalClose();
+}
+
+function handleSignatureModalBackdropClick(e) {
+    if (e.target.id === 'signatureModal') {
+        closeSignatureModal();
+    }
+}
+
+function saveSignatureFromModal() {
+    const canvas = document.getElementById('modalSignatureCanvas');
+    if (!canvas) return;
+
+    const isEmpty = isSignatureCanvasEmpty('modalSignatureCanvas');
+    if (isEmpty && !googleAuthState.digitalSignature) {
+        alert('Por favor, desenhe sua assinatura no quadro antes de salvar.');
+        return;
+    }
+
+    if (!isEmpty) {
+        const sigDataUrl = canvas.toDataURL('image/png');
+        googleAuthState.digitalSignature = sigDataUrl;
+        userSessionData.digitalSignature = sigDataUrl;
+        saveGoogleAuthState();
+
+        // Atualiza no registro de prescritores
+        try {
+            const regSaved = localStorage.getItem(PRESCRIBERS_REGISTRY_KEY);
+            const registry = regSaved ? JSON.parse(regSaved) : {};
+            if (googleAuthState.email && registry[googleAuthState.email.toLowerCase()]) {
+                registry[googleAuthState.email.toLowerCase()].digitalSignature = sigDataUrl;
+                localStorage.setItem(PRESCRIBERS_REGISTRY_KEY, JSON.stringify(registry));
+            }
+        } catch (e) {
+            console.warn('Erro ao atualizar assinatura no registro:', e);
+        }
+
+        // Re-renderiza o documento se estiver visualizando a prescrição
+        const prescScreen = document.getElementById('screen-prescription');
+        if (prescScreen && prescScreen.classList.contains('active')) {
+            renderCurrentDocument();
+        }
+
+        alert('✓ Assinatura digital salva com sucesso e vinculada às suas prescrições!');
+    }
+
+    closeSignatureModal();
+}
+
 // Exportações globais para eventos HTML
 window.handleHeaderAuthClick = handleHeaderAuthClick;
 window.openGoogleSignInModal = openGoogleSignInModal;
 window.closeGoogleSignInModal = closeGoogleSignInModal;
 window.handleGoogleModalBackdropClick = handleGoogleModalBackdropClick;
 window.goToGoogleStep = goToGoogleStep;
+window.selectLoginProfileRole = selectLoginProfileRole;
+window.selectCouncilPill = selectCouncilPill;
+window.handlePatientBirthDateChange = handlePatientBirthDateChange;
 window.handleGoogleStep1Submit = handleGoogleStep1Submit;
-window.handleGoogleStep2Submit = handleGoogleStep2Submit;
+window.handleGoogleStep3ProfSubmit = handleGoogleStep3ProfSubmit;
+window.handleGoogleStep3PatientSubmit = handleGoogleStep3PatientSubmit;
+window.openEditUserDataModal = openEditUserDataModal;
 window.triggerGoogleLoginFlow = triggerGoogleLoginFlow;
 window.fillDemoGoogleAccount = fillDemoGoogleAccount;
 window.triggerGoogleLogout = triggerGoogleLogout;
 window.handleGoogleCredentialResponse = handleGoogleCredentialResponse;
 window.triggerDocumentPrint = triggerDocumentPrint;
 window.openPrescriptionInNewTab = openPrescriptionInNewTab;
+
+// Modais de Assinatura e Indicação
+window.openSubscriptionModal = openSubscriptionModal;
+window.closeSubscriptionModal = closeSubscriptionModal;
+window.handleSubscriptionModalBackdropClick = handleSubscriptionModalBackdropClick;
+window.openReferralModal = openReferralModal;
+window.closeReferralModal = closeReferralModal;
+window.handleReferralModalBackdropClick = handleReferralModalBackdropClick;
+window.copyUserReferralLink = copyUserReferralLink;
+window.shareReferralOnWhatsApp = shareReferralOnWhatsApp;
+window.shareReferralWebAPI = shareReferralWebAPI;
+window.checkPendingReferral = checkPendingReferral;
+
+// Assinatura Digital do Prescritor
+window.initSignaturePad = initSignaturePad;
+window.clearSignatureCanvas = clearSignatureCanvas;
+window.isSignatureCanvasEmpty = isSignatureCanvasEmpty;
+window.openSignatureModal = openSignatureModal;
+window.closeSignatureModal = closeSignatureModal;
+window.handleSignatureModalBackdropClick = handleSignatureModalBackdropClick;
+window.saveSignatureFromModal = saveSignatureFromModal;
+
+// Roteamento SPA e Deep Linking
+window.navigateToRoute = navigateToRoute;
+window.navigateToProfileRoute = navigateToProfileRoute;
+window.syncUrlPath = syncUrlPath;
+window.getRouteForProfile = getRouteForProfile;
+window.goToHomeProfiles = goToHomeProfiles;
+window.handleFloatingBack = handleFloatingBack;
+
 
 
