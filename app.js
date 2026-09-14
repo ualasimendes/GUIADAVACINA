@@ -2550,6 +2550,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Carregar Estado de Autenticação Google
     loadGoogleAuthState();
+    initGoogleAuth();
 });
 
 // =========================================================================
@@ -2944,6 +2945,17 @@ function applyPrescriptionZoom() {
     }
     if (zoomLevelEl) {
         zoomLevelEl.textContent = `${Math.round(currentPrescriptionZoom * 100)}%`;
+    }
+}
+
+// Disparo Seguro de Impressão e Salvamento em PDF
+function triggerDocumentPrint() {
+    window.focus();
+    try {
+        window.print();
+    } catch (e) {
+        console.warn('Erro ao disparar impressão direta:', e);
+        openPrescriptionInNewTab();
     }
 }
 
@@ -3691,7 +3703,278 @@ function handleBasketModalBackdropClick(e) {
 // =========================================================================
 
 const PRESCRIBERS_REGISTRY_KEY = 'guia_vacinal_prescribers_registry';
-let tempGoogleAuthData = { email: '', name: '' };
+let tempGoogleAuthData = { email: '', name: '', picture: '' };
+let googleClientId = '';
+
+function parseJwt(token) {
+    if (!token) return null;
+    try {
+        const base64Url = token.split('.')[1];
+        if (!base64Url) return null;
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload);
+    } catch (e) {
+        console.warn('Erro ao decodificar JWT Google:', e);
+        return null;
+    }
+}
+
+async function initGoogleAuth() {
+    try {
+        const resp = await fetch('/api/auth/google/config');
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.clientId) {
+                googleClientId = data.clientId.trim();
+            }
+        }
+    } catch (err) {
+        console.warn('Configuração de cliente Google não pôde ser obtida:', err);
+    }
+
+    // Inicializar Google Identity Services (GIS) caso a biblioteca esteja pronta
+    setupGoogleIdentityServices();
+
+    // Listener para mensagens da janela popup OAuth (/auth/callback)
+    window.addEventListener('message', (event) => {
+        if (!event.data) return;
+        if (event.data.type === 'OAUTH_AUTH_SUCCESS') {
+            handleOAuthPopupCallbackSuccess(event.data);
+        }
+    });
+}
+
+function setupGoogleIdentityServices() {
+    if (typeof window.google === 'undefined' || !window.google.accounts || !window.google.accounts.id) {
+        // Tenta novamente após pequeno intervalo caso o script gsi/client ainda esteja carregando
+        setTimeout(setupGoogleIdentityServices, 300);
+        return;
+    }
+
+    if (!googleClientId) {
+        return;
+    }
+
+    try {
+        window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true
+        });
+
+        const btnSlot = document.getElementById('gsiButtonWrapper');
+        if (btnSlot) {
+            btnSlot.innerHTML = '';
+            window.google.accounts.id.renderButton(btnSlot, {
+                theme: 'outline',
+                size: 'large',
+                type: 'standard',
+                text: 'continue_with',
+                shape: 'rectangular',
+                locale: 'pt-BR'
+            });
+        }
+    } catch (e) {
+        console.warn('Erro ao inicializar GIS:', e);
+    }
+}
+
+function handleGoogleCredentialResponse(response) {
+    if (!response || !response.credential) {
+        console.warn('Resposta de credencial Google vazia.');
+        return;
+    }
+
+    const payload = parseJwt(response.credential);
+    if (!payload || !payload.email) {
+        alert('Não foi possível ler as credenciais da Conta Google.');
+        return;
+    }
+
+    const email = payload.email;
+    const name = payload.name || payload.given_name || email.split('@')[0];
+    const picture = payload.picture || '';
+
+    processVerifiedGoogleIdentity(email, name, picture);
+}
+
+function handleOAuthPopupCallbackSuccess(data) {
+    if (data.error) {
+        alert(`Erro na autenticação Google: ${data.error}`);
+        return;
+    }
+
+    let email = '';
+    let name = '';
+    let picture = '';
+
+    if (data.idToken) {
+        const payload = parseJwt(data.idToken);
+        if (payload) {
+            email = payload.email;
+            name = payload.name || email.split('@')[0];
+            picture = payload.picture || '';
+        }
+    }
+
+    if (!email && data.accessToken) {
+        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { 'Authorization': `Bearer ${data.accessToken}` }
+        })
+        .then(res => res.json())
+        .then(profile => {
+            if (profile && profile.email) {
+                processVerifiedGoogleIdentity(profile.email, profile.name || profile.email.split('@')[0], profile.picture || '');
+            }
+        })
+        .catch(err => {
+            console.warn('Erro ao consultar userinfo Google:', err);
+        });
+        return;
+    }
+
+    if (email) {
+        processVerifiedGoogleIdentity(email, name, picture);
+    }
+}
+
+function processVerifiedGoogleIdentity(email, name, picture) {
+    tempGoogleAuthData = { email, name, picture };
+
+    // Verificar se já possui conselho registrado
+    try {
+        const regSaved = localStorage.getItem(PRESCRIBERS_REGISTRY_KEY);
+        const registry = regSaved ? JSON.parse(regSaved) : {};
+        const existingProf = registry[email.toLowerCase()];
+
+        if (existingProf && existingProf.councilNumber) {
+            googleAuthState = {
+                isLoggedIn: true,
+                email: email,
+                name: existingProf.name || name,
+                avatar: picture || '🩺',
+                roleTag: `${existingProf.councilType}/${existingProf.councilUf} ${existingProf.councilNumber}`,
+                councilType: existingProf.councilType,
+                councilUf: existingProf.councilUf,
+                councilNumber: existingProf.councilNumber,
+                cpf: existingProf.cpf,
+                companyName: existingProf.companyName || '',
+                companyCnpj: existingProf.companyCnpj || ''
+            };
+            saveGoogleAuthState();
+            syncGoogleDataToPrescriptionForm();
+            closeGoogleSignInModal();
+            return;
+        }
+    } catch (e) {
+        console.warn('Erro ao verificar prescritores registrados:', e);
+    }
+
+    // Preenche a Etapa 2 de vinculação profissional
+    const step2Avatar = document.getElementById('step2Avatar');
+    const step2Name = document.getElementById('step2Name');
+    const step2Email = document.getElementById('step2Email');
+
+    if (step2Avatar) {
+        if (picture) {
+            step2Avatar.innerHTML = `<img src="${picture}" alt="Avatar Google" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`;
+        } else {
+            step2Avatar.textContent = '🩺';
+        }
+    }
+    if (step2Name) step2Name.textContent = name;
+    if (step2Email) step2Email.textContent = email;
+
+    goToGoogleStep(2);
+}
+
+async function triggerGoogleLoginFlow() {
+    // 1. Tentar fluxo oficial de popup se houver URL disponível no servidor
+    try {
+        const resp = await fetch('/api/auth/google/url');
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.configured && data.url) {
+                const width = 520;
+                const height = 640;
+                const left = window.screen.width / 2 - width / 2;
+                const top = window.screen.height / 2 - height / 2;
+                const popup = window.open(
+                    data.url,
+                    'google_oauth_popup',
+                    `width=${width},height=${height},top=${top},left=${left},menubar=no,status=no,toolbar=no`
+                );
+                if (popup) return;
+            }
+        }
+    } catch (e) {
+        console.warn('Erro ao chamar endpoint de URL Google:', e);
+    }
+
+    // 2. Se GIS estiver inicializado, tentar prompt
+    if (window.google && window.google.accounts && window.google.accounts.id && googleClientId) {
+        window.google.accounts.id.prompt();
+        return;
+    }
+
+    // 3. Fallback inteligente: focar o campo de e-mail e nome com instrução clara
+    const emailInput = document.getElementById('step1GoogleEmail');
+    if (emailInput) {
+        emailInput.focus();
+        emailInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+function fillDemoGoogleAccount() {
+    const demoEmail = 'lacee.mds@gmail.com';
+    const demoName = 'Dr. Walace Mendes dos Santos';
+
+    tempGoogleAuthData = {
+        email: demoEmail,
+        name: demoName,
+        picture: ''
+    };
+
+    googleAuthState = {
+        isLoggedIn: true,
+        email: demoEmail,
+        name: demoName,
+        avatar: '🩺',
+        roleTag: 'CRF/RJ 12345',
+        councilType: 'CRF',
+        councilUf: 'RJ',
+        councilNumber: '12345',
+        cpf: '118.002.337-44',
+        companyName: 'Consultório Farmacêutico Guia Vacinal',
+        companyCnpj: '11.800.233/0001-44'
+    };
+
+    saveGoogleAuthState();
+
+    try {
+        const regSaved = localStorage.getItem(PRESCRIBERS_REGISTRY_KEY);
+        const registry = regSaved ? JSON.parse(regSaved) : {};
+        registry[demoEmail.toLowerCase()] = {
+            name: demoName,
+            councilType: 'CRF',
+            councilUf: 'RJ',
+            councilNumber: '12345',
+            cpf: '118.002.337-44',
+            companyName: 'Consultório Farmacêutico Guia Vacinal',
+            companyCnpj: '11.800.233/0001-44'
+        };
+        localStorage.setItem(PRESCRIBERS_REGISTRY_KEY, JSON.stringify(registry));
+    } catch (err) {
+        console.warn('Erro ao salvar conta de demonstração:', err);
+    }
+
+    syncGoogleDataToPrescriptionForm();
+    closeGoogleSignInModal();
+}
 
 function loadGoogleAuthState() {
     try {
@@ -3728,6 +4011,13 @@ function saveGoogleAuthState() {
     updateGoogleAuthUI();
 }
 
+function renderAvatarElement(avatar, fallback = '🩺') {
+    if (avatar && (avatar.startsWith('http://') || avatar.startsWith('https://'))) {
+        return `<img src="${avatar}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    }
+    return avatar || fallback;
+}
+
 function updateGoogleAuthUI() {
     const headerBtn = document.getElementById('headerGoogleAuthBtn');
     const headerLabel = document.getElementById('headerAuthLabel');
@@ -3755,7 +4045,14 @@ function updateGoogleAuthUI() {
         if (dropdownUserName) dropdownUserName.textContent = googleAuthState.name;
         if (dropdownUserEmail) dropdownUserEmail.textContent = googleAuthState.email;
         if (dropdownUserRole) dropdownUserRole.textContent = googleAuthState.roleTag || `${googleAuthState.councilType}/${googleAuthState.councilUf} ${googleAuthState.councilNumber}`;
-        if (dropdownAvatar) dropdownAvatar.textContent = googleAuthState.avatar || '🩺';
+        
+        if (dropdownAvatar) {
+            if (googleAuthState.avatar && googleAuthState.avatar.startsWith('http')) {
+                dropdownAvatar.innerHTML = `<img src="${googleAuthState.avatar}" alt="Avatar" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">`;
+            } else {
+                dropdownAvatar.textContent = googleAuthState.avatar || '🩺';
+            }
+        }
 
         if (lockBadgeClinic) {
             lockBadgeClinic.className = 'role-card-lock-badge unlocked';
@@ -3766,7 +4063,13 @@ function updateGoogleAuthUI() {
             lockBadgeProf.textContent = '✓ Desbloqueado';
         }
 
-        if (modalConnectedAvatar) modalConnectedAvatar.textContent = googleAuthState.avatar || '🩺';
+        if (modalConnectedAvatar) {
+            if (googleAuthState.avatar && googleAuthState.avatar.startsWith('http')) {
+                modalConnectedAvatar.innerHTML = `<img src="${googleAuthState.avatar}" alt="Avatar" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`;
+            } else {
+                modalConnectedAvatar.textContent = googleAuthState.avatar || '🩺';
+            }
+        }
         if (modalConnectedName) modalConnectedName.textContent = googleAuthState.name;
         if (modalConnectedEmail) modalConnectedEmail.textContent = googleAuthState.email;
     } else {
@@ -3799,6 +4102,9 @@ function openGoogleSignInModal() {
         goToGoogleStep(1);
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
+        if (googleClientId && window.google && window.google.accounts && window.google.accounts.id) {
+            setupGoogleIdentityServices();
+        }
     }
 }
 
@@ -3823,7 +4129,7 @@ function handleHeaderAuthClick() {
     if (googleAuthState.isLoggedIn) {
         const dropdown = document.getElementById('authDropdownMenu');
         if (dropdown) {
-            const isHidden = dropdown.style.display === 'none';
+            const isHidden = dropdown.style.display === 'none' || dropdown.style.display === '';
             dropdown.style.display = isHidden ? 'flex' : 'none';
         }
     } else {
@@ -3869,7 +4175,7 @@ function handleGoogleStep1Submit(e) {
         return;
     }
 
-    tempGoogleAuthData = { email, name };
+    tempGoogleAuthData = { email, name, picture: '' };
 
     // Verifica se este prescritor já possui registro de conselho salvo no dispositivo
     try {
@@ -3933,7 +4239,7 @@ function handleGoogleStep2Submit(e) {
         isLoggedIn: true,
         email: tempGoogleAuthData.email,
         name: tempGoogleAuthData.name,
-        avatar: '🩺',
+        avatar: tempGoogleAuthData.picture || '🩺',
         roleTag: `${council}/${uf} ${number}`,
         councilType: council,
         councilUf: uf,
@@ -3956,7 +4262,8 @@ function handleGoogleStep2Submit(e) {
             councilNumber: number,
             cpf: cpf,
             companyName: est,
-            companyCnpj: cnpj
+            companyCnpj: cnpj,
+            picture: tempGoogleAuthData.picture || ''
         };
         localStorage.setItem(PRESCRIBERS_REGISTRY_KEY, JSON.stringify(registry));
     } catch (err) {
@@ -4008,6 +4315,14 @@ function triggerGoogleLogout() {
         companyCnpj: ''
     };
     saveGoogleAuthState();
+
+    if (window.google && window.google.accounts && window.google.accounts.id) {
+        try {
+            window.google.accounts.id.disableAutoSelect();
+        } catch (e) {
+            // Ignorar se não suportado
+        }
+    }
 
     const dropdown = document.getElementById('authDropdownMenu');
     if (dropdown) dropdown.style.display = 'none';
@@ -4535,4 +4850,20 @@ function handlePagBankCardSubmit(e) {
         closePagBankCheckoutModal();
     }, 1500);
 }
+
+// Exportações globais para eventos HTML
+window.handleHeaderAuthClick = handleHeaderAuthClick;
+window.openGoogleSignInModal = openGoogleSignInModal;
+window.closeGoogleSignInModal = closeGoogleSignInModal;
+window.handleGoogleModalBackdropClick = handleGoogleModalBackdropClick;
+window.goToGoogleStep = goToGoogleStep;
+window.handleGoogleStep1Submit = handleGoogleStep1Submit;
+window.handleGoogleStep2Submit = handleGoogleStep2Submit;
+window.triggerGoogleLoginFlow = triggerGoogleLoginFlow;
+window.fillDemoGoogleAccount = fillDemoGoogleAccount;
+window.triggerGoogleLogout = triggerGoogleLogout;
+window.handleGoogleCredentialResponse = handleGoogleCredentialResponse;
+window.triggerDocumentPrint = triggerDocumentPrint;
+window.openPrescriptionInNewTab = openPrescriptionInNewTab;
+
 

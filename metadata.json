@@ -1,0 +1,8 @@
+{
+  "name": "Guia Vacinal",
+  "description": "Sistema Clínico de Imunização e Apoio à Decisão com Prescrição Farmacêutica e Triagem Vacinal (SBIm / PNI)",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

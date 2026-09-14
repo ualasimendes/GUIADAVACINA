@@ -17,6 +17,119 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
+    const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost:3000'}`);
+    const pathname = parsedUrl.pathname;
+
+    // Rota API Google OAuth: Configuração do Cliente
+    if (req.method === 'GET' && pathname === '/api/auth/google/config') {
+        const clientId = process.env.GOOGLE_CLIENT_ID || '';
+        res.writeHead(200, {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({
+            clientId: clientId,
+            isConfigured: Boolean(clientId && clientId.trim().length > 5)
+        }));
+        return;
+    }
+
+    // Rota API Google OAuth: Obter URL de Autorização para Popup
+    if (req.method === 'GET' && pathname === '/api/auth/google/url') {
+        const clientId = process.env.GOOGLE_CLIENT_ID || '';
+        const appUrl = process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : `http://${req.headers.host || 'localhost:3000'}`;
+        const redirectUri = `${appUrl}/auth/callback`;
+
+        if (!clientId) {
+            res.writeHead(200, {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Access-Control-Allow-Origin': '*'
+            });
+            res.end(JSON.stringify({
+                configured: false,
+                redirectUri: redirectUri,
+                message: 'GOOGLE_CLIENT_ID não configurado no ambiente.'
+            }));
+            return;
+        }
+
+        const params = new URLSearchParams({
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            response_type: 'token id_token',
+            scope: 'openid email profile',
+            prompt: 'select_account',
+            nonce: Math.random().toString(36).substring(2)
+        });
+
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+        res.writeHead(200, {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({
+            configured: true,
+            url: authUrl,
+            redirectUri: redirectUri
+        }));
+        return;
+    }
+
+    // Rota Callback Google OAuth para fechar popup e notificar opener
+    if (req.method === 'GET' && (pathname === '/auth/callback' || pathname === '/auth/callback/')) {
+        const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <title>Autenticação Google</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; text-align: center; }
+        .box { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); max-width: 360px; }
+        .spinner { width: 36px; height: 36px; border: 3px solid #e2e8f0; border-top-color: #0b57d0; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <div class="spinner"></div>
+        <h3>Autenticação Google</h3>
+        <p>Conectando sua conta com segurança...</p>
+    </div>
+    <script>
+        (function() {
+            try {
+                const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+                const queryParams = new URLSearchParams(window.location.search);
+                const idToken = hashParams.get('id_token');
+                const accessToken = hashParams.get('access_token');
+                const code = queryParams.get('code');
+                const error = queryParams.get('error') || hashParams.get('error');
+
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'OAUTH_AUTH_SUCCESS',
+                        idToken: idToken,
+                        accessToken: accessToken,
+                        code: code,
+                        error: error
+                    }, '*');
+                    setTimeout(() => window.close(), 400);
+                } else {
+                    window.location.href = '/';
+                }
+            } catch (err) {
+                console.error('Erro no callback OAuth:', err);
+                if (window.opener) window.close();
+            }
+        })();
+    </script>
+</body>
+</html>`;
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html);
+        return;
+    }
+
     // Rota API PagBank: Criar Pedido (PIX ou Cartão)
     if (req.method === 'POST' && req.url === '/api/pagbank/orders') {
         let body = '';

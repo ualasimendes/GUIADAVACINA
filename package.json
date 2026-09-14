@@ -4,6 +4,7 @@
   "description": "Portal de Decisão Clínica e Prescrição Farmacêutica em Imunizações (SBIm / PNI)",
   "main": "server.js",
   "scripts": {
+    "build": "echo 'Build complete'",
     "start": "node server.js"
   },
   "keywords": ["vacina", "sbim", "farmacia", "sus", "ubs"],

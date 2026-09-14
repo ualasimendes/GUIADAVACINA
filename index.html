@@ -7,6 +7,8 @@
     <meta name="description" content="Guia de vacinação e suporte à decisão clínica com sistema de triagem da carteira vacinal.">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💉</text></svg>">
+    <!-- Google Identity Services (GIS) SDK -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <!-- Botão de Voltar Flutuante (Minimalista) -->
@@ -17,12 +19,6 @@
     <!-- Botão de Tema Flutuante Minimalista -->
     <button class="floating-theme-toggle" id="themeToggle" title="Alternar tema claro/escuro">
         <span id="themeIcon">🌙</span>
-    </button>
-
-    <!-- Botão de Serviços & Checkout PagBank -->
-    <button class="floating-checkout-btn" id="headerCheckoutBtn" onclick="openPagBankCheckoutModal()" title="Serviços & Pagamento Seguro PagBank">
-        <span>💳</span>
-        <span class="checkout-btn-text">Serviços PagBank</span>
     </button>
 
     <!-- Botão de Login Google Flutuante Minimalista -->
@@ -211,7 +207,7 @@
                     <button class="btn-prescription-action btn-newtab-doc" onclick="openPrescriptionInNewTab()" title="Abrir em nova aba para visualização isolada">
                         👁️ Abrir em Nova Guia
                     </button>
-                    <button class="btn-prescription-action btn-print-doc" onclick="window.print()" title="Imprimir ou Salvar em PDF (Ctrl+P)">
+                    <button class="btn-prescription-action btn-print-doc" onclick="triggerDocumentPrint()" title="Imprimir ou Salvar em PDF (Ctrl+P)">
                         🖨️ Visualizar / Salvar PDF
                     </button>
                 </div>
@@ -615,33 +611,53 @@
 
                 <!-- ETAPA 1: AUTENTICAÇÃO COM CONTA GOOGLE -->
                 <div id="googleAuthStep1" class="google-step-pane active">
-                    <form id="formGoogleStep1" onsubmit="handleGoogleStep1Submit(event)" class="google-auth-box">
+                    <div class="google-auth-box">
                         <div class="google-account-prompt">
                             <p class="google-prompt-instruction">
-                                Para emitir prescrições e orientações técnicas, identifique-se com sua <strong>Conta Google</strong>:
+                                Para emitir prescrições e orientações técnicas com validade profissional, identifique-se com sua <strong>Conta Google</strong>:
                             </p>
                         </div>
 
-                        <div class="form-group">
-                            <label for="step1GoogleEmail">E-mail da Conta Google <span class="req-star">*</span></label>
-                            <input type="email" id="step1GoogleEmail" class="form-control form-control-google" placeholder="exemplo@gmail.com" required autocomplete="email">
+                        <!-- Botão Oficial Google OAuth / GIS -->
+                        <div class="google-oauth-action-area">
+                            <div id="gsiButtonWrapper" class="gsi-button-slot"></div>
+                            <button type="button" class="btn-google-native-login" id="btnGoogleNativeAction" onclick="triggerGoogleLoginFlow()">
+                                <svg class="google-icon-svg" viewBox="0 0 24 24" width="20" height="20">
+                                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.37 7.36 24 12 24z"/>
+                                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
+                                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.27 2.63 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                                </svg>
+                                <span>Entrar com a Conta Google</span>
+                            </button>
                         </div>
 
-                        <div class="form-group">
-                            <label for="step1GoogleName">Nome Completo do Titular <span class="req-star">*</span></label>
-                            <input type="text" id="step1GoogleName" class="form-control form-control-google" placeholder="Seu Nome Completo" required autocomplete="name">
+                        <div class="google-auth-divider">
+                            <span>ou confirme com seus dados cadastrais</span>
                         </div>
 
-                        <button type="submit" class="btn-google-sign-in-action" id="btnContinueWithGoogle">
-                            <svg class="google-icon-svg" viewBox="0 0 24 24" width="20" height="20">
-                                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
-                                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.37 7.36 24 12 24z"/>
-                                <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
-                                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.27 2.63 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-                            </svg>
-                            <span>Continuar com o Google →</span>
-                        </button>
-                    </form>
+                        <form id="formGoogleStep1" onsubmit="handleGoogleStep1Submit(event)" class="google-manual-form">
+                            <div class="form-group">
+                                <label for="step1GoogleEmail">E-mail da Conta Google <span class="req-star">*</span></label>
+                                <input type="email" id="step1GoogleEmail" class="form-control form-control-google" placeholder="exemplo@gmail.com" required autocomplete="email">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="step1GoogleName">Nome Completo do Prescritor <span class="req-star">*</span></label>
+                                <input type="text" id="step1GoogleName" class="form-control form-control-google" placeholder="Dr(a). Seu Nome Completo" required autocomplete="name">
+                            </div>
+
+                            <button type="submit" class="btn-google-sign-in-action" id="btnContinueWithGoogle">
+                                <span>Prosseguir para Inscrição Profissional →</span>
+                            </button>
+                        </form>
+
+                        <div class="google-demo-row">
+                            <button type="button" class="btn-demo-quick-login" onclick="fillDemoGoogleAccount()" title="Acesso rápido para demonstração">
+                                ⚡ Usar Perfil Profissional de Teste (Farmacêutico CRF/RJ 12345)
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- ETAPA 2: VINCULAÇÃO DO CONSELHO PROFISSIONAL (CRF/CRM/COREN) -->
@@ -789,7 +805,7 @@
             </div>
             <div class="modal-body legal-modal-body">
                 <h4>1. Compromisso com a Proteção de Dados</h4>
-                <p>A plataforma <strong>walace mendes</strong> (CNPJ/CPF 118.002.337-44) atua em estrita conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD - Lei nº 13.709/2018). Os dados de saúde e cadastrais coletados destinam-se exclusivamente à triagem da carteira vacinal e emissão de receituários técnicos.</p>
+                <p>A plataforma <strong>Guia Vacinal</strong> atua em estrita conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD - Lei nº 13.709/2018). Os dados de saúde e cadastrais coletados destinam-se exclusivamente à triagem da carteira vacinal e emissão de receituários técnicos.</p>
                 <h4>2. Dados Coletados e Finalidade</h4>
                 <p>Coletamos nome completo, idade, histórico vacinal e comorbidades para a correta indicação imunobiológica. Os dados de profissionais de saúde (CRF/CRM/COREN) são processados para assegurar a autenticidade e validade técnica dos documentos emitidos.</p>
                 <h4>3. Sigilo e Não Compartilhamento</h4>
@@ -815,7 +831,7 @@
             </div>
             <div class="modal-body legal-modal-body">
                 <h4>1. Objeto da Plataforma</h4>
-                <p>O Guia Vacinal disponibilizado por <strong>walace mendes</strong> (CPF 118.002.337-44) é um sistema tecnológico de triagem de imunização e apoio à prescrição clínica farmacêutica e médica.</p>
+                <p>O <strong>Guia Vacinal</strong> é um sistema tecnológico de triagem de imunização e apoio à prescrição clínica farmacêutica e médica.</p>
                 <h4>2. Responsabilidade Profissional</h4>
                 <p>A emissão de receituários oficiais é restrita a profissionais legalmente habilitados (médicos, farmacêuticos e enfermeiros conforme suas resoluções de classe CFF 585/586, CFM e COFEN). O profissional assume inteira responsabilidade técnica pelo ato prescritivo.</p>
                 <h4>3. Orientações ao Paciente</h4>
@@ -981,56 +997,9 @@
     ========================================================================= -->
     <footer class="app-footer">
         <div class="footer-container">
-            <!-- Linha 1: Dados do Comerciante / Titular Oficial -->
-            <div class="footer-merchant-grid">
-                <div class="footer-merchant-block">
-                    <strong class="footer-block-title">Identificação do Prestador</strong>
-                    <p class="footer-merchant-name"><strong>walace mendes</strong></p>
-                    <p class="footer-merchant-sub">Responsável Técnico: Walace Mendes dos Santos</p>
-                    <p class="footer-merchant-tax">CPF/CNPJ: <strong>118.002.337-44</strong></p>
-                    <p class="footer-merchant-address">Av. das Américas, 3500 - Barra da Tijuca, Rio de Janeiro - RJ, CEP 22640-102</p>
-                </div>
-
-                <div class="footer-merchant-block">
-                    <strong class="footer-block-title">Atendimento &amp; Suporte</strong>
-                    <p class="footer-contact-item">📧 <a href="mailto:lacee.mds@gmail.com">lacee.mds@gmail.com</a></p>
-                    <p class="footer-contact-item">📱 WhatsApp: <a href="https://api.whatsapp.com/send?phone=5521982212654" target="_blank">+55 (21) 98221-2654</a></p>
-                    <p class="footer-contact-item">🕒 Horário: Segunda a Sexta das 08h às 18h</p>
-                </div>
-
-                <div class="footer-merchant-block">
-                    <strong class="footer-block-title">Políticas e Diretrizes Legais</strong>
-                    <ul class="footer-legal-links">
-                        <li><a href="javascript:void(0)" onclick="openLegalModal('privacyModal')">🛡️ Política de Privacidade (LGPD)</a></li>
-                        <li><a href="javascript:void(0)" onclick="openLegalModal('termsModal')">📜 Termos e Condições de Uso</a></li>
-                        <li><a href="javascript:void(0)" onclick="openLegalModal('refundModal')">🔄 Política de Reembolso (CDC Art. 49)</a></li>
-                    </ul>
-                </div>
-
-                <div class="footer-merchant-block">
-                    <strong class="footer-block-title">Meios de Pagamento &amp; Segurança</strong>
-                    <div class="footer-badges-flow">
-                        <span class="badge-payment">PagBank</span>
-                        <span class="badge-payment">PIX Instantâneo</span>
-                        <span class="badge-payment">Visa</span>
-                        <span class="badge-payment">Mastercard</span>
-                        <span class="badge-payment">Elo</span>
-                        <span class="badge-payment">Hipercard</span>
-                    </div>
-                    <div class="footer-ssl-badge">
-                        🔒 Conexão Segura SSL/TLS 256 bits • PagSeguro Internet S.A.
-                    </div>
-                </div>
-            </div>
-
-            <!-- Linha 2: A ÚNICA MENÇÃO OFICIAL INSTITUCIONAL A SBIM / PNI (Conforme solicitado) -->
-            <div class="footer-scientific-note">
-                Orientações técnico-científicas referenciadas nos calendários oficiais da <strong>Sociedade Brasileira de Imunizações (SBIm)</strong> e do <strong>Programa Nacional de Imunizações (PNI/SUS)</strong>.
-            </div>
-
-            <!-- Linha 3: Direitos Autorais -->
+            <!-- Direitos Autorais -->
             <div class="footer-copyright-bar">
-                <p>&copy; 2026 <strong>walace mendes</strong> • Todos os direitos reservados. Plataforma de Triagem e Apoio Clínico à Imunização.</p>
+                <p>&copy; 2026 <strong>Guia Vacinal</strong> • Todos os direitos reservados. Plataforma de Triagem e Apoio Clínico à Imunização.</p>
             </div>
         </div>
     </footer>
