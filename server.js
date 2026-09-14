@@ -266,7 +266,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
     console.log('====================================================');
-    console.log('   Guia Vacinal - Servidor Local Ativo! 💉');
+    console.log('   Guia da Vacina - Servidor Local Ativo! 💉');
     console.log(`   URL Local: http://localhost:${PORT}`);
     console.log('   Pressione F5 no navegador para atualizar');
     console.log('   Pressione Ctrl + C no terminal para parar');

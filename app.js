@@ -1,5 +1,5 @@
 /**
- * GUIA VACINAL - MOTOR COM SISTEMA MARK
+ * GUIA DA VACINA - MOTOR COM SISTEMA MARK
  * Cards com status de triagem:
  * - Verde / Positivo = Marcada OK / Em dia
  * - Vermelho suave = Não marcada / Pendente
@@ -3110,7 +3110,7 @@ function openPrescriptionInNewTab() {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title} - Guia Vacinal</title>
+    <title>${title} - Guia da Vacina</title>
     <link rel="stylesheet" href="style.css">
     <style>
         body {
@@ -3433,7 +3433,7 @@ function renderPrescriptionPaper() {
             <div class="pt-8 border-t border-slate-300 flex flex-col sm:flex-row justify-between items-end gap-6 text-xs">
                 <div class="text-slate-500 text-[11px]">
                     <p>Documento emitido eletronicamente conforme resoluções de regulação da prescrição de imunobiológicos.</p>
-                    <p>Guia Vacinal - Sistema de Apoio à Decisão Clínica e Prescrição.</p>
+                    <p>Guia da Vacina - Sistema de Apoio à Decisão Clínica e Prescrição.</p>
                 </div>
                 <div class="text-center sm:text-right min-w-[240px] flex flex-col items-center sm:items-end">
                     ${(userSessionData.digitalSignature || googleAuthState.digitalSignature) ? `
@@ -3581,7 +3581,7 @@ function renderPatientInformativePaper() {
             </div>
 
             <div class="pt-6 border-t border-slate-300 flex flex-col sm:flex-row justify-between items-center gap-4 text-[11px] text-slate-500">
-                <p>Guia Vacinal • Calendários e Diretrizes Técnicas de Imunização.</p>
+                <p>Guia da Vacina • Calendários e Diretrizes Técnicas de Imunização.</p>
                 <p>Documento gerado para orientação individual do paciente.</p>
             </div>
         </div>
@@ -3614,7 +3614,7 @@ function generateWhatsAppPrescriptionUrl() {
 
     const mensagem = 
 `🩺 *SOLICITAÇÃO DE PRESCRIÇÃO VACINAL*
-Olá! Realizei a triagem no Guia Vacinal e gostaria de solicitar a avaliação de um profissional de saúde habilitado para emissão da prescrição e agendamento da vacinação.
+Olá! Realizei a triagem no Guia da Vacina e gostaria de solicitar a avaliação de um profissional de saúde habilitado para emissão da prescrição e agendamento da vacinação.
 
 👤 *DADOS PARA TRIAGEM:*
 • *Paciente:* ${patientName}
@@ -3860,7 +3860,51 @@ function parseJwt(token) {
     }
 }
 
+function checkOAuthHashTokens() {
+    if (!window.location.hash) return false;
+    const hash = window.location.hash.substring(1);
+    if (!hash.includes('access_token=') && !hash.includes('id_token=') && !hash.includes('error=')) {
+        return false;
+    }
+
+    const hashParams = new URLSearchParams(hash);
+    const idToken = hashParams.get('id_token');
+    const accessToken = hashParams.get('access_token');
+    const error = hashParams.get('error');
+
+    // Se estiver em uma janela popup aberta pelo site
+    if (window.opener && window.opener !== window) {
+        try {
+            window.opener.postMessage({
+                type: 'OAUTH_AUTH_SUCCESS',
+                idToken: idToken,
+                accessToken: accessToken,
+                error: error
+            }, '*');
+            window.close();
+            return true;
+        } catch (e) {
+            console.warn('Erro ao enviar mensagem ao opener:', e);
+        }
+    }
+
+    // Se o redirecionamento foi na janela principal (ex: mobile)
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    if (error) {
+        console.warn('Erro retornado na URL pelo Google OAuth:', error);
+        showGoogleOriginNotice();
+    } else {
+        handleOAuthPopupCallbackSuccess({ idToken, accessToken });
+    }
+    return true;
+}
+
 async function initGoogleAuth() {
+    // 0. Verificar se a janela atual é o retorno do autorizador Google OAuth
+    if (checkOAuthHashTokens()) {
+        return;
+    }
+
     try {
         const resp = await fetch('/api/auth/google/config');
         if (resp.ok) {
@@ -4097,19 +4141,56 @@ function showGoogleOriginNotice() {
     }
 }
 
-async function triggerGoogleLoginFlow() {
-    // 1. Tentar OAuth2 Token Client client-side (oficial do Google Identity Services para Web/SPA)
-    if (window.google && window.google.accounts && window.google.accounts.oauth2 && googleClientId) {
+function openGoogleDirectAuthPopup() {
+    const clientId = googleClientId || DEFAULT_GOOGLE_CLIENT_ID;
+    
+    // Obter URL base limpa para o redirect_uri
+    const cleanPath = window.location.pathname.replace(/\/index\.html$/, '') || '/';
+    const redirectUri = window.location.origin + cleanPath;
+
+    const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: 'token id_token',
+        scope: 'openid email profile',
+        prompt: 'select_account',
+        nonce: Date.now().toString()
+    });
+
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+
+    const width = 500;
+    const height = 620;
+    const left = Math.max(0, Math.round((window.screen.width - width) / 2));
+    const top = Math.max(0, Math.round((window.screen.height - height) / 2));
+
+    const popup = window.open(
+        googleAuthUrl,
+        'google_oauth_authorizer',
+        `width=${width},height=${height},top=${top},left=${left},menubar=no,status=no,toolbar=no,scrollbars=yes,resizable=yes`
+    );
+
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        // Se popup foi bloqueado pelo navegador, redireciona diretamente na mesma janela
+        window.location.href = googleAuthUrl;
+    }
+}
+
+function triggerGoogleLoginFlow() {
+    const clientId = googleClientId || DEFAULT_GOOGLE_CLIENT_ID;
+
+    // 1. Tentar OAuth2 Token Client client-side se o SDK do Google já estiver carregado
+    if (window.google && window.google.accounts && window.google.accounts.oauth2) {
         try {
             const tokenClient = window.google.accounts.oauth2.initTokenClient({
-                client_id: googleClientId,
+                client_id: clientId,
                 scope: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid',
                 prompt: 'select_account',
                 callback: async (tokenResponse) => {
                     if (tokenResponse && tokenResponse.error) {
                         console.warn('Google OAuth Token error:', tokenResponse.error);
                         if (tokenResponse.error !== 'access_denied') {
-                            showGoogleOriginNotice();
+                            openGoogleDirectAuthPopup();
                         }
                         return;
                     }
@@ -4133,55 +4214,19 @@ async function triggerGoogleLoginFlow() {
                     }
                 },
                 error_callback: (err) => {
-                    console.warn('Erro no Google OAuth Token Client:', err);
-                    showGoogleOriginNotice();
+                    console.warn('Erro no GIS Token Client, abrindo autorizador direto:', err);
+                    openGoogleDirectAuthPopup();
                 }
             });
             tokenClient.requestAccessToken({ prompt: 'select_account' });
             return;
         } catch (e) {
-            console.warn('Erro ao disparar initTokenClient:', e);
+            console.warn('Erro ao disparar initTokenClient, usando autorizador direto:', e);
         }
     }
 
-    // 2. Tentar fluxo oficial de popup via servidor se houver endpoint ativo (ex: AI Studio)
-    try {
-        const resp = await fetch('/api/auth/google/url');
-        if (resp.ok) {
-            const data = await resp.json();
-            if (data && data.configured && data.url) {
-                const width = 520;
-                const height = 640;
-                const left = window.screen.width / 2 - width / 2;
-                const top = window.screen.height / 2 - height / 2;
-                const popup = window.open(
-                    data.url,
-                    'google_oauth_popup',
-                    `width=${width},height=${height},top=${top},left=${left},menubar=no,status=no,toolbar=no`
-                );
-                if (popup) return;
-            }
-        }
-    } catch (e) {
-        // Silencioso em ambiente estático
-    }
-
-    // 3. Se GIS estiver inicializado, tentar prompt One Tap
-    if (window.google && window.google.accounts && window.google.accounts.id && googleClientId) {
-        try {
-            window.google.accounts.id.prompt();
-        } catch (e) {
-            console.warn('Erro no prompt GIS:', e);
-        }
-    }
-
-    // 4. Fallback inteligente: exibir aviso se aplicável e focar no campo de e-mail e nome
-    showGoogleOriginNotice();
-    const emailInput = document.getElementById('step1GoogleEmail');
-    if (emailInput) {
-        emailInput.focus();
-        emailInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    // 2. Abrir imediatamente a janela do Autorizador Oficial do Google (sempre abre a janela de login)
+    openGoogleDirectAuthPopup();
 }
 
 function fillDemoGoogleAccount() {
@@ -4205,7 +4250,7 @@ function fillDemoGoogleAccount() {
         councilUf: 'RJ',
         councilNumber: '12345',
         cpf: '118.002.337-44',
-        companyName: 'Consultório Farmacêutico Guia Vacinal',
+        companyName: 'Consultório Farmacêutico Guia da Vacina',
         companyCnpj: '11.800.233/0001-44',
         birthDate: '',
         referralCode: 'walace12',
@@ -4224,7 +4269,7 @@ function fillDemoGoogleAccount() {
             councilUf: 'RJ',
             councilNumber: '12345',
             cpf: '118.002.337-44',
-            companyName: 'Consultório Farmacêutico Guia Vacinal',
+            companyName: 'Consultório Farmacêutico Guia da Vacina',
             companyCnpj: '11.800.233/0001-44',
             referralCode: 'walace12',
             bonusMonths: 1
@@ -5117,7 +5162,7 @@ function showCopySuccess(btn, textSpan, iconSpan) {
 
 function shareReferralOnWhatsApp() {
     const link = getUserReferralLink();
-    const text = `Olá! Conheça a plataforma Guia Vacinal para prescrição de imunobiológicos e calendários SBIm/PNI. Cadastre-se pelo meu link com a Conta Google e nós dois ganhamos 1 mês grátis de assinatura PRO:\n\n${link}`;
+    const text = `Olá! Conheça a plataforma Guia da Vacina para prescrição de imunobiológicos e calendários SBIm/PNI. Cadastre-se pelo meu link com a Conta Google e nós dois ganhamos 1 mês grátis de assinatura PRO:\n\n${link}`;
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
 }
@@ -5126,8 +5171,8 @@ function shareReferralWebAPI() {
     const link = getUserReferralLink();
     if (navigator.share) {
         navigator.share({
-            title: 'Guia Vacinal - Indique e Ganhe 1 Mês Grátis',
-            text: 'Cadastre-se na plataforma Guia Vacinal pelo meu link e ganhe 1 mês grátis de acesso PRO!',
+            title: 'Guia da Vacina - Indique e Ganhe 1 Mês Grátis',
+            text: 'Cadastre-se na plataforma Guia da Vacina pelo meu link e ganhe 1 mês grátis de acesso PRO!',
             url: link
         }).catch(() => {});
     } else {
