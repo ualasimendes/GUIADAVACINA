@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia Vacinal - Sistema Clínico de Imunização</title>
+    <meta name="description" content="Guia de vacinação e suporte à decisão clínica com sistema de triagem da carteira vacinal.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💉</text></svg>">
+</head>
+<body>
+    <!-- Botão de Voltar Flutuante (Minimalista) -->
+    <button class="floating-back-btn" id="btnBackToProfiles" onclick="handleFloatingBack()" title="Voltar">
+        ← Voltar
+    </button>
+
+    <!-- Botão de Tema Flutuante Minimalista -->
+    <button class="floating-theme-toggle" id="themeToggle" title="Alternar tema claro/escuro">
+        <span id="themeIcon">🌙</span>
+    </button>
+
+    <!-- Botão de Serviços & Checkout PagBank -->
+    <button class="floating-checkout-btn" id="headerCheckoutBtn" onclick="openPagBankCheckoutModal()" title="Serviços & Pagamento Seguro PagBank">
+        <span>💳</span>
+        <span class="checkout-btn-text">Serviços PagBank</span>
+    </button>
+
+    <!-- Botão de Login Google Flutuante Minimalista -->
+    <div class="floating-auth-wrap" id="floatingAuthWrap">
+        <button class="floating-google-btn" id="headerGoogleAuthBtn" onclick="handleHeaderAuthClick()" title="Login com Google para Prescrição Profissional">
+            <svg class="google-icon-svg" viewBox="0 0 24 24" width="16" height="16">
+                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.37 7.36 24 12 24z"/>
+                <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
+                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.27 2.63 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+            </svg>
+            <span id="headerAuthLabel">Entrar com Google</span>
+        </button>
+
+        <!-- Dropdown de perfil autenticado -->
+        <div class="auth-dropdown-menu" id="authDropdownMenu" style="display: none;">
+            <div class="dropdown-user-header">
+                <div class="dropdown-avatar" id="dropdownAvatar">🩺</div>
+                <div class="dropdown-user-meta">
+                    <strong id="dropdownUserName">Profissional Conectado</strong>
+                    <span id="dropdownUserEmail">-</span>
+                    <span class="dropdown-role-tag" id="dropdownUserRole">Prescritor Habilitado</span>
+                </div>
+            </div>
+            <div class="dropdown-actions">
+                <button class="btn-dropdown-action" onclick="openHistoryModal('prescriptions')">📋 Histórico de Prescrições</button>
+                <button class="btn-dropdown-action" onclick="openHistoryModal('patients')">👥 Histórico de Pacientes</button>
+                <button class="btn-dropdown-action" onclick="openPrescriptionDataModal()">✏️ Prescrição &amp; Dados</button>
+                <button class="btn-dropdown-logout" onclick="triggerGoogleLogout()">🚪 Sair da Conta Google</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cabeçalho Minimalista Centralizado -->
+    <header class="app-header">
+        <h1 class="brand-name" onclick="goToHomeProfiles()">Guia Vacinal</h1>
+    </header>
+
+    <main class="main-container">
+        <!-- ================= TELA 1: ESCOLHA DA FAIXA DE IDADE (5 CARDS) ================= -->
+        <section id="screen-profiles" class="screen-view active">
+            <div class="welcome-bar">
+                <h2 class="welcome-title">Escolha a faixa de idade</h2>
+            </div>
+
+            <div class="profiles-cards-container">
+                <!-- Perfil 1: Recém-Nascido até 9 Meses -->
+                <div class="profile-poster-card" onclick="goToComorbiditiesScreen('baby')">
+                    <img src="foto-bebe.jpeg" alt="Recém-Nascido até 9 Meses" class="poster-card-img">
+                    <div class="poster-card-scrim"></div>
+                    <div class="poster-card-bottom">
+                        <h3 class="poster-card-title">Recém-Nascido até 9 Meses</h3>
+                    </div>
+                </div>
+
+                <!-- Perfil 2: Criança e Adolescente (12m a 19 anos) -->
+                <div class="profile-poster-card" onclick="goToComorbiditiesScreen('teen')">
+                    <img src="foto-crianca.jpeg" alt="Criança e Adolescente" class="poster-card-img">
+                    <div class="poster-card-scrim"></div>
+                    <div class="poster-card-bottom">
+                        <h3 class="poster-card-title">Criança e Adolescente</h3>
+                    </div>
+                </div>
+
+                <!-- Perfil 3: Adulto -->
+                <div class="profile-poster-card" onclick="goToComorbiditiesScreen('adult')">
+                    <img src="foto-adulto.jpeg" alt="Adulto" class="poster-card-img">
+                    <div class="poster-card-scrim"></div>
+                    <div class="poster-card-bottom">
+                        <h3 class="poster-card-title">Adulto</h3>
+                    </div>
+                </div>
+
+                <!-- Perfil 4: Gestante -->
+                <div class="profile-poster-card card-pregnant" onclick="goToComorbiditiesScreen('pregnant')">
+                    <img src="foto-gestante.jpeg" alt="Gestante" class="poster-card-img">
+                    <div class="poster-card-scrim"></div>
+                    <div class="poster-card-bottom">
+                        <h3 class="poster-card-title">Gestante</h3>
+                    </div>
+                </div>
+
+                <!-- Perfil 5: Pessoa Idosa -->
+                <div class="profile-poster-card" onclick="goToComorbiditiesScreen('elderly')">
+                    <img src="foto-idoso.jpeg" alt="Pessoa Idosa" class="poster-card-img">
+                    <div class="poster-card-scrim"></div>
+                    <div class="poster-card-bottom">
+                        <h3 class="poster-card-title">Pessoa Idosa</h3>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TELA DE TRIAGEM DE COMORBIDADES ================= -->
+        <section id="screen-comorbidities" class="screen-view">
+            <div class="comorbidade-search-box">
+                <div class="search-box-header">
+                    <h2 class="search-box-title">
+                        Assinale as <strong>comorbidades associadas</strong> para iniciar a consulta
+                    </h2>
+                </div>
+
+                <!-- Grid de 12 itens (4 colunas x 3 linhas) - Sem rolagem de barra -->
+                <div class="comorbidities-cards-grid" id="comorbiditiesCardsGrid">
+                    <!-- Preenchido via JavaScript -->
+                </div>
+
+                <div class="line-profile"></div>
+
+                <div class="search-box-footer">
+                    <p class="special-patients-link-wrap">
+                        Outros perfis de <a href="javascript:void(0)" id="openSpecialModal" onclick="openSpecialPatientsModal()">Pacientes Especiais</a> que apresentam especificidades no esquema vacinal.
+                    </p>
+                    <button class="btn-comorbidity-advance" id="btnComorbidityAdvance" onclick="submitSelectedComorbidities()">
+                        Avançar para o Calendário →
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TELA 2: CALENDÁRIO COM FLUXOGRAMA ================= -->
+        <section id="screen-vaccines" class="screen-view">
+            <div class="welcome-bar">
+                <h2 class="welcome-title" id="selectedProfileTitle">Adulto</h2>
+            </div>
+
+            <!-- Banner de Comorbidades Ativo -->
+            <div id="comorbidityActiveBanner" class="comorbidity-active-banner" style="display: none;"></div>
+
+            <!-- MATRIZ DE COLUNAS DE MARCOS CRONOLÓGICOS (FLUXOGRAMA) -->
+            <div class="calendar-matrix-board" id="calendarMatrixBoard">
+                <!-- Preenchido via JavaScript -->
+            </div>
+
+            <!-- CESTO FLUTUANTE DE PRESCRIÇÃO (Popout) -->
+            <div id="prescriptionBasketBar" class="prescription-basket-bar">
+                <div class="basket-bar-left" onclick="openBasketPreviewModal()">
+                    <div class="basket-badge-icon">📋</div>
+                    <div class="basket-info">
+                        <div class="basket-title-wrap">
+                            <strong class="basket-title">Sugestão de prescrição</strong>
+                            <span class="basket-count-pill" id="basketCountPill">0 Pendentes</span>
+                        </div>
+                        <span class="basket-sub" id="basketSubtitle">Imunobiológicos pendentes identificados para receituário técnico</span>
+                    </div>
+                </div>
+                <div class="basket-actions">
+                    <button class="btn-basket-preview" onclick="openBasketPreviewModal()" title="Visualizar lista de vacinas">
+                        Vacinas (<span id="basketBtnCount">0</span>)
+                    </button>
+                    <button class="btn-basket-advance" id="btnBasketAdvance" onclick="handleGeneratePrescriptionClick()" title="Gerar prescrição">
+                        Gerar prescrição
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TELA 3: VISUALIZADOR DE PRESCRIÇÃO / PDF ================= -->
+        <section id="screen-prescription" class="screen-view">
+            <div class="prescription-screen-top-bar">
+                <div class="top-bar-left">
+                    <button class="btn-prescription-back" onclick="showScreen('screen-vaccines')">
+                        ← Voltar ao Calendário
+                    </button>
+                    <span class="prescription-screen-badge" id="prescriptionScreenBadge">Prescrição Oficial</span>
+                </div>
+
+                <!-- CONTROLES DO VISUALIZADOR DE PDF -->
+                <div class="pdf-toolbar-center">
+                    <span class="pdf-page-indicator">📄 Página 1 de 1 (A4)</span>
+                    <div class="pdf-zoom-btn-group">
+                        <button class="btn-pdf-tool" onclick="zoomPrescription(-0.1)" title="Diminuir Zoom">🔍−</button>
+                        <span class="pdf-zoom-label" id="prescriptionZoomLevel">100%</span>
+                        <button class="btn-pdf-tool" onclick="zoomPrescription(0.1)" title="Aumentar Zoom">🔍+</button>
+                        <button class="btn-pdf-tool btn-fit" onclick="resetPrescriptionZoom()" title="Tamanho Real (100%)">Ajustar</button>
+                    </div>
+                </div>
+
+                <div class="top-bar-actions">
+                    <button class="btn-prescription-action btn-edit-patient" onclick="openPrescriptionDataModal()">
+                        ✏️ Editar Dados
+                    </button>
+                    <button class="btn-prescription-action btn-top-wa" id="btnTopWhatsApp" onclick="openWhatsAppPrescription()" style="display: none;">
+                        💬 Solicitar via WhatsApp
+                    </button>
+                    <button class="btn-prescription-action btn-newtab-doc" onclick="openPrescriptionInNewTab()" title="Abrir em nova aba para visualização isolada">
+                        👁️ Abrir em Nova Guia
+                    </button>
+                    <button class="btn-prescription-action btn-print-doc" onclick="window.print()" title="Imprimir ou Salvar em PDF (Ctrl+P)">
+                        🖨️ Visualizar / Salvar PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- WORKSPACE DO VISUALIZADOR DE PDF COM ROLAGEM VERTICAL COMPLETA -->
+            <div id="prescriptionViewerWorkspace" class="prescription-viewer-workspace">
+                <div id="prescriptionPaperWrap" class="prescription-paper-wrap">
+                    <!-- Preenchido dinamicamente via JavaScript -->
+                </div>
+            </div>
+
+            <!-- POPOUT FLUTUANTE DE WHATSAPP PARA PACIENTE -->
+            <div id="patientWhatsAppPopout" class="patient-whatsapp-popout" style="display: none;">
+                <button class="popout-close-btn" onclick="closeWhatsAppPopout()" title="Fechar aviso">✕</button>
+                <div class="popout-body">
+                    <div class="popout-icon">💬</div>
+                    <div class="popout-info">
+                        <strong class="popout-title">Solicitar Prescrição Oficial</strong>
+                        <p class="popout-text">Encaminhe seus dados de triagem para um profissional habilitado avaliar e emitir sua prescrição oficial.</p>
+                    </div>
+                </div>
+                <button class="btn-popout-whatsapp" onclick="openWhatsAppPrescription()">
+                    Solicitar Prescrição via WhatsApp ↗
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal de Opções do Marco Cronológico (Quando clica no Card 3:4) -->
+    <div class="modal-backdrop" id="milestoneModal" onclick="handleMilestoneBackdropClick(event)">
+        <div class="modal-dialog modal-dialog-milestone">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-badge-age" id="milestoneModalBadge">2 Meses</span>
+                    <h3 class="modal-title" id="milestoneModalTitle">Vacinas Recomendadas</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeMilestoneModal()" title="Fechar (Esc)">✕</button>
+            </div>
+            <div class="modal-body" id="milestoneModalBody">
+                <!-- Lista de vacinas deste marco preenchida via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-toggle-mark" id="btnMilestoneModalAllOk" onclick="toggleCurrentMilestoneAllOk()">
+                    ✓ Marcar Todas do Mês como OK
+                </button>
+                <button class="btn-modal-close" onclick="closeMilestoneModal()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalhes Clínicos da Vacina -->
+    <div class="modal-backdrop" id="vaccineModal" onclick="handleBackdropClick(event)">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-badge-age" id="modalMilestoneBadge">2 Meses</span>
+                    <h3 class="modal-title" id="modalVacTitle">Nome da Vacina</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeVaccineModal()" title="Fechar (Esc)">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-tags-row">
+                    <span class="vac-badge" id="modalVacNetwork">🔵 SUS (UBS)</span>
+                    <span class="vac-dose-pill" id="modalVacDose">1ª Dose</span>
+                    <span class="modal-triage-badge" id="modalTriageStatus">⏳ PENDENTE</span>
+                </div>
+
+                <!-- Pergunta Clínica de Doses Anteriores / Triagem Farmacêutica -->
+                <div class="modal-triage-history-box" id="modalHistoryBox">
+                    <div class="history-box-header">
+                        <span class="history-icon">📋</span>
+                        <div>
+                            <strong class="history-title">Triagem de Doses Anteriores</strong>
+                            <p class="history-sub" id="modalHistorySub">Avaliação de histórico vacinal prévio</p>
+                        </div>
+                    </div>
+                    <p class="history-question-text" id="modalHistoryQuestion">
+                        O paciente já recebeu alguma dose desta vacina anteriormente?
+                    </p>
+                    <div class="history-options-grid" id="modalHistoryOptions">
+                        <!-- Gerado dinamicamente -->
+                    </div>
+                    <div class="history-feedback-box" id="modalHistoryFeedback" style="display: none;">
+                        <span class="feedback-icon" id="modalFeedbackIcon">💡</span>
+                        <div id="modalFeedbackText"></div>
+                    </div>
+                </div>
+
+                <div class="modal-field">
+                    <span class="modal-field-label">🛡️ O QUE PREVINE</span>
+                    <p class="modal-field-value" id="modalVacPrevine">Prevenção detalhada...</p>
+                </div>
+
+                <div class="modal-field">
+                    <span class="modal-field-label">💉 VIA & ESQUEMA DE ADMINISTRAÇÃO</span>
+                    <p class="modal-field-value" id="modalVacEsquema">Esquema detalhado...</p>
+                </div>
+
+                <div class="modal-note-box" id="modalVacNoteBox">
+                    <span class="note-icon">💡</span>
+                    <div>
+                        <strong>Conduta Técnica &amp; Dispensação:</strong>
+                        <p id="modalVacNota">Nota técnica de conduta...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-toggle-mark" id="btnModalToggleMark" onclick="toggleCurrentModalVaccine()">
+                    ✓ Marcar como OK / Em Dia
+                </button>
+                <button class="btn-modal-close" onclick="closeVaccineModal()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Pacientes Especiais -->
+    <div class="modal-backdrop" id="specialPatientsModal" onclick="handleSpecialModalBackdropClick(event)">
+        <div class="modal-dialog modal-dialog-special-patients">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-badge-age">Diretrizes Oficiais</span>
+                    <h3 class="modal-title">Pacientes Especiais</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeSpecialPatientsModal()" title="Fechar (Esc)">✕</button>
+            </div>
+            <div class="modal-body special-patients-modal-body">
+                <h4 class="special-patients-heading">
+                    Pacientes Especiais, que apresentam <strong>risco aumentado para aquisição e/ou complicações de doenças imunopreveníveis</strong>, são pessoas com:
+                </h4>
+                <ul class="special-patients-list">
+                    <li>Hepatopatias crônicas;</li>
+                    <li>Doença renal crônica;</li>
+                    <li>Condições associadas à disfunção esplênica (asplenia);</li>
+                    <li>HIV / Aids;</li>
+                    <li>Imunodeficiência primária;</li>
+                    <li>Doenças oncológicas em atividade;</li>
+                    <li>Doenças autoimunes que levem à imunodepressão.</li>
+                </ul>
+
+                <h4 class="special-patients-heading" style="margin-top: 0.85rem;">Além de:</h4>
+                <ul class="special-patients-list">
+                    <li>Pessoas em uso de drogas imunossupressoras;</li>
+                    <li>Candidatos a transplante ou transplantados de órgãos sólidos;</li>
+                    <li>Pessoas transplantadas de células-tronco hematopoiéticas (TMO);</li>
+                    <li>Pessoas em uso de drogas que podem causar imunocomprometimento;</li>
+                    <li>Mulheres em processo de amamentação.</li>
+                </ul>
+
+                <p class="special-patients-note">
+                    Confira as diferentes recomendações para estes grupos no Calendário Técnico de Pacientes Especiais:
+                </p>
+
+                <button class="btn-sbim-external" onclick="window.open('https://sbim.org.br/calendario-de-vacinacao/pacientes-especiais', '_blank')">
+                    Consultar Calendário de Pacientes Especiais ↗
+                </button>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-close" onclick="closeSpecialPatientsModal()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Pré-visualização do Cesto de Prescrição -->
+    <div class="modal-backdrop" id="basketPreviewModal" onclick="handleBasketModalBackdropClick(event)">
+        <div class="modal-dialog modal-dialog-basket">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-badge-age">Cesto de Prescrição</span>
+                    <h3 class="modal-title">Imunobiológicos Pendentes (<span id="basketModalCount">0</span>)</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeBasketPreviewModal()" title="Fechar (Esc)">✕</button>
+            </div>
+            <div class="modal-body">
+                <p class="basket-modal-intro">
+                    Estas são as vacinas identificadas como pendentes na triagem clínica que serão incluídas na Prescrição Farmacêutica:
+                </p>
+                <div class="basket-preview-items-list" id="basketPreviewItemsList">
+                    <!-- Preenchido via JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-close" onclick="closeBasketPreviewModal()">Voltar ao Calendário</button>
+                <button class="btn-modal-advance-prescription" onclick="closeBasketPreviewModal(); goToPrescriptionScreen();">
+                    Gerar prescrição
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Identificação e Dados para Emissão (Etapa 3) -->
+    <div class="modal-backdrop" id="prescriptionDataModal" onclick="handlePrescriptionDataModalBackdropClick(event)">
+        <div class="modal-dialog modal-dialog-prescription-data">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-badge-age" id="modalPrescriptionBadge">Identificação</span>
+                    <h3 class="modal-title">Identificação para Emissão</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closePrescriptionDataModal()" title="Fechar (Esc)">✕</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-role-instruction">Selecione o perfil do solicitante para direcionar o documento correto:</p>
+
+                <!-- 3 CARDS DE SELEÇÃO DE PERFIL -->
+                <div class="user-role-selector-grid">
+                    <div class="role-select-card" id="roleCardClinic" onclick="selectUserRole('clinic')">
+                        <span class="role-card-lock-badge" id="lockBadgeClinic">🔒 Requer Login Google</span>
+                        <div class="role-card-radio"></div>
+                        <div class="role-card-icon">🏥</div>
+                        <div class="role-card-content">
+                            <strong class="role-card-title">Profissional em Estabelecimento</strong>
+                            <span class="role-card-desc">Farmácia, clínica ou serviço habilitado a vacinar.</span>
+                        </div>
+                    </div>
+
+                    <div class="role-select-card" id="roleCardProfessional" onclick="selectUserRole('professional')">
+                        <span class="role-card-lock-badge" id="lockBadgeProfessional">🔒 Requer Login Google</span>
+                        <div class="role-card-radio"></div>
+                        <div class="role-card-icon">🩺</div>
+                        <div class="role-card-content">
+                            <strong class="role-card-title">Profissional Habilitado</strong>
+                            <span class="role-card-desc">Prescritor autônomo ou consultório (CRF, CRM ou COREN).</span>
+                        </div>
+                    </div>
+
+                    <div class="role-select-card" id="roleCardPatient" onclick="selectUserRole('patient')">
+                        <span class="role-card-badge-open">✓ Aberto ao Público</span>
+                        <div class="role-card-radio"></div>
+                        <div class="role-card-icon">👤</div>
+                        <div class="role-card-content">
+                            <strong class="role-card-title">Somente Paciente</strong>
+                            <span class="role-card-desc">Consulta individual para orientação e triagem vacinal.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BANNER DE BLOQUEIO / EXIGÊNCIA DE LOGIN GOOGLE -->
+                <div id="googleAuthLockBanner" class="google-auth-lock-banner" style="display: none;">
+                    <div class="auth-lock-content">
+                        <div class="auth-lock-icon">🔒</div>
+                        <div class="auth-lock-text">
+                            <strong>Prescrição Oficial Bloqueada</strong>
+                            <p>A emissão de receituários e prescrições técnicas oficiais de vacinas é restrita a prescritores e serviços de vacinação com login Google.</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-google-login-action" onclick="openGoogleSignInModal()">
+                        <svg class="google-icon-svg" viewBox="0 0 24 24" width="18" height="18">
+                            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.37 7.36 24 12 24z"/>
+                            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
+                            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.27 2.63 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                        </svg>
+                        Fazer Login com Google para Desbloquear
+                    </button>
+                </div>
+
+                <!-- BANNER DE STATUS CONECTADO VIA GOOGLE -->
+                <div id="googleAuthConnectedBanner" class="google-auth-connected-banner" style="display: none;">
+                    <div class="auth-connected-left">
+                        <div class="connected-user-avatar" id="modalConnectedAvatar">🩺</div>
+                        <div>
+                            <div class="connected-status-tag">✓ Conectado via Google • Prescrição Habilitada</div>
+                            <strong class="connected-user-name" id="modalConnectedName">Profissional Conectado</strong>
+                            <span class="connected-user-email" id="modalConnectedEmail">-</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-auth-switch" onclick="openGoogleSignInModal()" title="Alternar conta Google">Trocar Conta</button>
+                </div>
+
+                <form id="formPrescriptionData" onsubmit="savePrescriptionData(event)" class="prescription-data-form">
+                    
+                    <!-- SEÇÃO 1: ESTABELECIMENTO HABILITADO (Apenas se role === 'clinic') -->
+                    <div id="sectionEstablishment" class="role-form-section" style="display: none;">
+                        <div class="form-section-title">🏥 Estabelecimento Habilitado à Vacinação</div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="inputCompanyName">Razão Social <span class="req-star">*</span></label>
+                                <input type="text" id="inputCompanyName" class="form-control" placeholder="Razão Social do Estabelecimento">
+                            </div>
+                            <div class="form-group">
+                                <label for="inputCompanyCnpj">CNPJ <span class="req-star">*</span></label>
+                                <input type="text" id="inputCompanyCnpj" class="form-control" placeholder="00.000.000/0001-00" maxlength="18" oninput="formatCnpjInput(this)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEÇÃO 2: PROFISSIONAL PRESCRITOR (Apenas se role === 'clinic' || role === 'professional') -->
+                    <div id="sectionProfessional" class="role-form-section" style="display: none;">
+                        <div class="form-section-title">🩺 Profissional de Saúde Prescritor</div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="inputProfessionalName">Nome Completo do Profissional <span class="req-star">*</span></label>
+                                <input type="text" id="inputProfessionalName" class="form-control" placeholder="Nome Completo do Prescritor">
+                            </div>
+                            <div class="form-group">
+                                <label for="inputProfessionalCpf">CPF do Profissional <span class="req-star">*</span></label>
+                                <input type="text" id="inputProfessionalCpf" class="form-control" placeholder="000.000.000-00" maxlength="14" oninput="formatCpfInput(this)">
+                            </div>
+                        </div>
+                        <div class="form-grid-3">
+                            <div class="form-group">
+                                <label for="inputCouncilType">Conselho <span class="req-star">*</span></label>
+                                <select id="inputCouncilType" class="form-control">
+                                    <option value="CRF">CRF (Farmácia)</option>
+                                    <option value="CRM">CRM (Medicina)</option>
+                                    <option value="COREN">COREN (Enfermagem)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="inputCouncilUf">UF <span class="req-star">*</span></label>
+                                <select id="inputCouncilUf" class="form-control">
+                                    <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
+                                    <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
+                                    <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+                                    <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+                                    <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
+                                    <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
+                                    <option value="RJ" selected>RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+                                    <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+                                    <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="inputCouncilNumber">Nº Inscrição <span class="req-star">*</span></label>
+                                <input type="text" id="inputCouncilNumber" class="form-control" placeholder="Número de inscrição">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEÇÃO 3: DADOS DO PACIENTE (Sempre visível) -->
+                    <div id="sectionPatient" class="role-form-section">
+                        <div class="form-section-title">👤 Dados do Paciente</div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="inputPatientName">Nome Completo do Paciente <span class="req-star">*</span></label>
+                                <input type="text" id="inputPatientName" class="form-control" required placeholder="Nome Completo do Paciente">
+                            </div>
+                            <div class="form-group">
+                                <label for="inputPatientCpf">CPF do Paciente <span class="req-star" id="patientCpfStar">*</span></label>
+                                <input type="text" id="inputPatientCpf" class="form-control" placeholder="000.000.000-00" maxlength="14" oninput="formatCpfInput(this)">
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="inputPatientAge">Idade / Fase da Vida <span class="req-star">*</span></label>
+                                <input type="text" id="inputPatientAge" class="form-control" required placeholder="Ex: 35 anos ou 5 meses">
+                            </div>
+                            <div class="form-group">
+                                <label for="inputPatientBirth">Data de Nascimento (Opcional)</label>
+                                <input type="text" id="inputPatientBirth" class="form-control" placeholder="DD/MM/AAAA">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-form-actions">
+                        <button type="button" class="btn-modal-close" onclick="closePrescriptionDataModal()">Cancelar</button>
+                        <button type="submit" class="btn-modal-save" id="btnSubmitRoleForm">Gerar Prescrição Oficial →</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         MODAL OFICIAL DE AUTENTICAÇÃO GOOGLE EM 2 ETAPAS
+         Etapa 1: Autenticação da Conta Google (Google Sign-In)
+         Etapa 2: Registro Profissional no Conselho (CRF / CRM / COREN)
+    ========================================================================= -->
+    <div class="modal-backdrop" id="googleSignInModal" onclick="handleGoogleModalBackdropClick(event)">
+        <div class="modal-dialog modal-dialog-google">
+            <div class="google-modal-header">
+                <div class="google-brand-header">
+                    <div class="google-logo-pill">
+                        <svg class="google-logo-svg" viewBox="0 0 24 24" width="22" height="22">
+                            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.37 7.36 24 12 24z"/>
+                            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
+                            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.27 2.63 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                        </svg>
+                        <span class="google-brand-text">Google</span>
+                    </div>
+                    <h3 class="google-signin-title" id="googleModalTitle">Fazer login com o Google</h3>
+                    <p class="google-signin-sub" id="googleModalSubtitle">Autenticação oficial para prescrição de vacinas.</p>
+                </div>
+                <button class="modal-close-btn" onclick="closeGoogleSignInModal()" title="Fechar (Esc)">✕</button>
+            </div>
+
+            <div class="modal-body google-modal-body">
+                <!-- Indicador de Passos -->
+                <div class="google-steps-stepper">
+                    <div class="stepper-step active" id="stepperStep1">
+                        <span class="stepper-num">1</span>
+                        <span class="stepper-label">Conta Google</span>
+                    </div>
+                    <div class="stepper-line" id="stepperLine"></div>
+                    <div class="stepper-step" id="stepperStep2">
+                        <span class="stepper-num">2</span>
+                        <span class="stepper-label">Conselho Profissional</span>
+                    </div>
+                </div>
+
+                <!-- ETAPA 1: AUTENTICAÇÃO COM CONTA GOOGLE -->
+                <div id="googleAuthStep1" class="google-step-pane active">
+                    <form id="formGoogleStep1" onsubmit="handleGoogleStep1Submit(event)" class="google-auth-box">
+                        <div class="google-account-prompt">
+                            <p class="google-prompt-instruction">
+                                Para emitir prescrições e orientações técnicas, identifique-se com sua <strong>Conta Google</strong>:
+                            </p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="step1GoogleEmail">E-mail da Conta Google <span class="req-star">*</span></label>
+                            <input type="email" id="step1GoogleEmail" class="form-control form-control-google" placeholder="exemplo@gmail.com" required autocomplete="email">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="step1GoogleName">Nome Completo do Titular <span class="req-star">*</span></label>
+                            <input type="text" id="step1GoogleName" class="form-control form-control-google" placeholder="Seu Nome Completo" required autocomplete="name">
+                        </div>
+
+                        <button type="submit" class="btn-google-sign-in-action" id="btnContinueWithGoogle">
+                            <svg class="google-icon-svg" viewBox="0 0 24 24" width="20" height="20">
+                                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.37 7.36 24 12 24z"/>
+                                <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
+                                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.27 2.63 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                            </svg>
+                            <span>Continuar com o Google →</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- ETAPA 2: VINCULAÇÃO DO CONSELHO PROFISSIONAL (CRF/CRM/COREN) -->
+                <div id="googleAuthStep2" class="google-step-pane" style="display: none;">
+                    <div class="google-user-connected-badge">
+                        <div class="connected-badge-avatar" id="step2Avatar">🩺</div>
+                        <div class="connected-badge-info">
+                            <span class="badge-tag-ok">✓ Conta Google Conectada</span>
+                            <strong class="badge-user-name" id="step2Name">Nome</strong>
+                            <span class="badge-user-email" id="step2Email">email@gmail.com</span>
+                        </div>
+                    </div>
+
+                    <form id="formGoogleStep2" onsubmit="handleGoogleStep2Submit(event)" class="custom-google-form">
+                        <div class="custom-form-title">Dados de Inscrição Profissional (Habilitação)</div>
+
+                        <div class="form-grid-3">
+                            <div class="form-group">
+                                <label for="step2Council">Conselho <span class="req-star">*</span></label>
+                                <select id="step2Council" class="form-control">
+                                    <option value="CRF">CRF (Farmácia)</option>
+                                    <option value="CRM">CRM (Medicina)</option>
+                                    <option value="COREN">COREN (Enfermagem)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="step2Uf">UF <span class="req-star">*</span></label>
+                                <select id="step2Uf" class="form-control">
+                                    <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
+                                    <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
+                                    <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+                                    <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+                                    <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
+                                    <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
+                                    <option value="RJ" selected>RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+                                    <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+                                    <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="step2Number">Nº Inscrição <span class="req-star">*</span></label>
+                                <input type="text" id="step2Number" class="form-control" placeholder="Ex: 12345" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="step2Cpf">CPF do Profissional Prescritor <span class="req-star">*</span></label>
+                            <input type="text" id="step2Cpf" class="form-control" placeholder="000.000.000-00" required maxlength="14" oninput="formatCpfInput(this)">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="step2Establishment">Estabelecimento / Clínica (Opcional se autônomo)</label>
+                            <input type="text" id="step2Establishment" class="form-control" placeholder="Nome Fantasia / Razão Social">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="step2Cnpj">CNPJ do Estabelecimento (Opcional)</label>
+                            <input type="text" id="step2Cnpj" class="form-control" placeholder="00.000.000/0001-00" maxlength="18" oninput="formatCnpjInput(this)">
+                        </div>
+
+                        <div class="step-actions-row">
+                            <button type="button" class="btn-step-back" onclick="goToGoogleStep(1)">← Voltar</button>
+                            <button type="submit" class="btn-step-finish">✓ Salvar Registro &amp; Desbloquear</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="google-privacy-footer">
+                    <span>🛡️ Conformidade LGPD (Lei 13.709/2018). As credenciais profissionais são validadas estritamente para a responsabilidade técnica do receituário (CFF 585/586, CFM e RDC 197/2017).</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         MODAL DE HISTÓRICO: PRESCRIÇÕES EMITIDAS E PACIENTES ATENDIDOS
+    ========================================================================= -->
+    <div class="modal-backdrop" id="historyModal" onclick="handleHistoryModalBackdropClick(event)">
+        <div class="modal-dialog modal-dialog-history">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-badge-age">Painel do Profissional</span>
+                    <h3 class="modal-title">Histórico de Atendimentos</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeHistoryModal()" title="Fechar (Esc)">✕</button>
+            </div>
+
+            <div class="modal-body history-modal-body">
+                <!-- Abas do Histórico -->
+                <div class="history-tabs-bar">
+                    <button class="history-tab-btn active" id="tabBtnPrescriptions" onclick="switchHistoryTab('prescriptions')">
+                        📋 Prescrições Emitidas (<span id="historyPrescCount">0</span>)
+                    </button>
+                    <button class="history-tab-btn" id="tabBtnPatients" onclick="switchHistoryTab('patients')">
+                        👥 Pacientes Atendidos (<span id="historyPatientCount">0</span>)
+                    </button>
+                </div>
+
+                <!-- Painel 1: Prescrições Emitidas -->
+                <div id="historyPanePrescriptions" class="history-pane active">
+                    <div class="history-search-row">
+                        <input type="text" id="searchPrescriptionsInput" class="form-control history-search-input" placeholder="🔍 Buscar por nome do paciente ou vacina..." oninput="filterPrescriptionsHistory(this.value)">
+                        <button class="btn-history-clear" onclick="clearPrescriptionHistoryData()" title="Limpar histórico com confirmação">🗑️ Limpar Tudo</button>
+                    </div>
+
+                    <div class="history-table-container">
+                        <div id="prescriptionsHistoryList" class="prescriptions-history-list">
+                            <!-- Preenchido via JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Painel 2: Pacientes Atendidos -->
+                <div id="historyPanePatients" class="history-pane" style="display: none;">
+                    <div class="history-search-row">
+                        <input type="text" id="searchPatientsInput" class="form-control history-search-input" placeholder="🔍 Buscar paciente por nome..." oninput="filterPatientsHistory(this.value)">
+                    </div>
+
+                    <div class="history-table-container">
+                        <div id="patientsHistoryList" class="patients-history-list">
+                            <!-- Preenchido via JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-modal-close" onclick="closeHistoryModal()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         MODAIS INSTITUCIONAIS: PRIVACIDADE, TERMOS E REEMBOLSO (CONFORMIDADE PAGBANK)
+    ========================================================================= -->
+    <!-- Modal Política de Privacidade & LGPD -->
+    <div class="modal-backdrop" id="privacyModal" onclick="handleLegalModalBackdropClick(event, 'privacyModal')">
+        <div class="modal-dialog modal-dialog-legal">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-badge-age">Conformidade Legal</span>
+                    <h3 class="modal-title">Política de Privacidade &amp; LGPD</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeLegalModal('privacyModal')">✕</button>
+            </div>
+            <div class="modal-body legal-modal-body">
+                <h4>1. Compromisso com a Proteção de Dados</h4>
+                <p>A plataforma <strong>walace mendes</strong> (CNPJ/CPF 118.002.337-44) atua em estrita conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD - Lei nº 13.709/2018). Os dados de saúde e cadastrais coletados destinam-se exclusivamente à triagem da carteira vacinal e emissão de receituários técnicos.</p>
+                <h4>2. Dados Coletados e Finalidade</h4>
+                <p>Coletamos nome completo, idade, histórico vacinal e comorbidades para a correta indicação imunobiológica. Os dados de profissionais de saúde (CRF/CRM/COREN) são processados para assegurar a autenticidade e validade técnica dos documentos emitidos.</p>
+                <h4>3. Sigilo e Não Compartilhamento</h4>
+                <p>Nenhum dado sensível de saúde é comercializado, compartilhado com terceiros ou utilizado para publicidade direcionada. Todas as comunicações contam com criptografia TLS 256 bits.</p>
+                <h4>4. Direitos do Titular (Art. 18 LGPD)</h4>
+                <p>O titular poderá solicitar a qualquer momento a confirmação de tratamento, acesso, correção ou eliminação dos dados através do canal oficial: <strong>lacee.mds@gmail.com</strong>.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-close" onclick="closeLegalModal('privacyModal')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Termos de Uso -->
+    <div class="modal-backdrop" id="termsModal" onclick="handleLegalModalBackdropClick(event, 'termsModal')">
+        <div class="modal-dialog modal-dialog-legal">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-badge-age">Contrato de Serviço</span>
+                    <h3 class="modal-title">Termos e Condições de Uso</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeLegalModal('termsModal')">✕</button>
+            </div>
+            <div class="modal-body legal-modal-body">
+                <h4>1. Objeto da Plataforma</h4>
+                <p>O Guia Vacinal disponibilizado por <strong>walace mendes</strong> (CPF 118.002.337-44) é um sistema tecnológico de triagem de imunização e apoio à prescrição clínica farmacêutica e médica.</p>
+                <h4>2. Responsabilidade Profissional</h4>
+                <p>A emissão de receituários oficiais é restrita a profissionais legalmente habilitados (médicos, farmacêuticos e enfermeiros conforme suas resoluções de classe CFF 585/586, CFM e COFEN). O profissional assume inteira responsabilidade técnica pelo ato prescritivo.</p>
+                <h4>3. Orientações ao Paciente</h4>
+                <p>Documentos emitidos na modalidade "Somente Paciente" possuem caráter estritamente informativo e não substituem o exame clínico presencial em estabelecimento autorizado.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-close" onclick="closeLegalModal('termsModal')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Política de Cancelamento e Reembolso -->
+    <div class="modal-backdrop" id="refundModal" onclick="handleLegalModalBackdropClick(event, 'refundModal')">
+        <div class="modal-dialog modal-dialog-legal">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-badge-age">Defesa do Consumidor</span>
+                    <h3 class="modal-title">Política de Reembolso &amp; Cancelamento</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeLegalModal('refundModal')">✕</button>
+            </div>
+            <div class="modal-body legal-modal-body">
+                <h4>1. Direito de Arrependimento (Art. 49 do CDC)</h4>
+                <p>Conforme estabelece o Artigo 49 do Código de Defesa do Consumidor e o Decreto do E-commerce nº 7.962/2013, o cliente possui o prazo incondicional de até <strong>7 (sete) dias corridos</strong> após a contratação de qualquer serviço digital ou assinatura para exercer o direito de arrependimento e requerer o reembolso integral dos valores pagos.</p>
+                <h4>2. Procedimento de Solicitação</h4>
+                <p>Para solicitar o cancelamento e reembolso, envie um e-mail para <strong>lacee.mds@gmail.com</strong> ou mensagem via WhatsApp para <strong>(21) 98221-2654</strong> informando o número do pedido ou CPF do titular.</p>
+                <h4>3. Meio e Prazo de Estorno via PagBank</h4>
+                <p>O estorno é processado diretamente através da infraestrutura de pagamentos <strong>PagBank PagSeguro</strong>:</p>
+                <ul class="legal-list">
+                    <li><strong>Pagamentos via PIX:</strong> O valor é devolvido instantaneamente para a conta de origem em até 24 horas após a validação.</li>
+                    <li><strong>Pagamentos via Cartão de Crédito:</strong> O cancelamento é comunicado à administradora do cartão de forma imediata, sendo o crédito lançado na fatura subsequente.</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-close" onclick="closeLegalModal('refundModal')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         MODAL DE CHECKOUT PAGBANK: SERVIÇOS, PIX E CARTÃO DE CRÉDITO
+    ========================================================================= -->
+    <div class="modal-backdrop" id="pagbankCheckoutModal" onclick="handlePagBankModalBackdropClick(event)">
+        <div class="modal-dialog modal-dialog-pagbank">
+            <div class="pagbank-modal-header">
+                <div class="pagbank-brand-title-wrap">
+                    <div class="pagbank-logo-badge">
+                        <span class="pagbank-logo-text">PagBank</span>
+                        <span class="pagbank-secure-badge">🔒 Pagamento Seguro</span>
+                    </div>
+                    <h3 class="pagbank-title">Contratação de Serviços Clínicos</h3>
+                    <p class="pagbank-subtitle">Ambiente de Checkout 100% Criptografado PagBank PagSeguro</p>
+                </div>
+                <button class="modal-close-btn" onclick="closePagBankCheckoutModal()">✕</button>
+            </div>
+
+            <div class="modal-body pagbank-modal-body">
+                <!-- Seleção do Serviço / Plano -->
+                <div class="pagbank-service-selector">
+                    <label class="service-option-card active" id="serviceCardPrescription" onclick="selectPagBankService('prescricao')">
+                        <input type="radio" name="pagbankService" value="prescricao" checked>
+                        <div class="service-meta">
+                            <strong class="service-name">Consulta &amp; Prescrição Digital</strong>
+                            <span class="service-desc">Avaliação clínica individual, emissão de receituário técnico oficial e suporte via WhatsApp.</span>
+                        </div>
+                        <div class="service-price">
+                            <span class="price-currency">R$</span>
+                            <span class="price-val">39,90</span>
+                        </div>
+                    </label>
+
+                    <label class="service-option-card" id="serviceCardPro" onclick="selectPagBankService('pro')">
+                        <input type="radio" name="pagbankService" value="pro">
+                        <div class="service-meta">
+                            <strong class="service-name">Plano Profissional Prescritor</strong>
+                            <span class="service-desc">Acesso mensal ilimitado para clínicas, farmácias e consultórios particulares.</span>
+                        </div>
+                        <div class="service-price">
+                            <span class="price-currency">R$</span>
+                            <span class="price-val">79,90</span>
+                            <span class="price-period">/mês</span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Abas de Pagamento PagBank: PIX vs Cartão -->
+                <div class="pagbank-payment-tabs">
+                    <button class="pagbank-pay-tab-btn active" id="tabBtnPix" onclick="switchPagBankPaymentMethod('pix')">
+                        💠 PIX PagBank (Aprovação Instantânea)
+                    </button>
+                    <button class="pagbank-pay-tab-btn" id="tabBtnCard" onclick="switchPagBankPaymentMethod('card')">
+                        💳 Cartão de Crédito
+                    </button>
+                </div>
+
+                <!-- ABA 1: PAGAMENTO PIX PAGBANK -->
+                <div id="payPanePix" class="pagbank-pay-pane active">
+                    <div class="pix-checkout-box">
+                        <div class="pix-qrcode-frame">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=00020101021226840014br.gov.bcb.pix2562pagbank.com.br/qr/v2/cob/f2a63281-7bf9-40b9-8e4a-928410294715520400005303986540539.905802BR5913walace+mendes6009SAO+PAULO62070503***63048C21" alt="QR Code PIX PagBank" class="pix-qrcode-img" id="pixQrCodeImg">
+                        </div>
+                        <div class="pix-details-wrap">
+                            <span class="pix-badge-instant">⚡ Disponível por 30 minutos</span>
+                            <strong class="pix-amount-display" id="pixAmountDisplay">R$ 39,90</strong>
+                            <p class="pix-instructions">Abra o aplicativo do seu banco, escolha <strong>Pagar via PIX</strong> e aponte a câmera ou use o código Copia e Cola:</p>
+                            
+                            <div class="pix-copia-cola-box">
+                                <input type="text" id="pixCopiaColaInput" readonly value="00020101021226840014br.gov.bcb.pix2562pagbank.com.br/qr/v2/cob/f2a63281-7bf9-40b9-8e4a-928410294715520400005303986540539.905802BR5913walace+mendes6009SAO+PAULO62070503***63048C21" class="pix-copia-cola-text">
+                                <button type="button" class="btn-copy-pix" onclick="copyPixCode()">Copiar Código PIX</button>
+                            </div>
+                            <span class="copy-success-feedback" id="pixCopyFeedback" style="display: none;">✓ Código PIX copiado com sucesso!</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ABA 2: PAGAMENTO CARTÃO PAGBANK -->
+                <div id="payPaneCard" class="pagbank-pay-pane" style="display: none;">
+                    <form id="formPagBankCard" onsubmit="handlePagBankCardSubmit(event)" class="pagbank-card-form">
+                        <div class="form-group">
+                            <label for="cardHolderName">Nome impresso no Cartão <span class="req-star">*</span></label>
+                            <input type="text" id="cardHolderName" class="form-control" placeholder="Como consta no cartão" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="cardNumber">Número do Cartão <span class="req-star">*</span></label>
+                            <input type="text" id="cardNumber" class="form-control" placeholder="0000 0000 0000 0000" maxlength="19" required oninput="formatCardNumber(this)">
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="cardExpiry">Validade (MM/AA) <span class="req-star">*</span></label>
+                                <input type="text" id="cardExpiry" class="form-control" placeholder="MM/AA" maxlength="5" required oninput="formatCardExpiry(this)">
+                            </div>
+                            <div class="form-group">
+                                <label for="cardCvv">CVV <span class="req-star">*</span></label>
+                                <input type="text" id="cardCvv" class="form-control" placeholder="123" maxlength="4" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="cardInstallments">Parcelamento <span class="req-star">*</span></label>
+                            <select id="cardInstallments" class="form-control">
+                                <option value="1">1x de R$ 39,90 sem juros</option>
+                                <option value="2">2x de R$ 19,95 sem juros</option>
+                                <option value="3">3x de R$ 13,30 sem juros</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-pagbank-submit-card" id="btnPayCard">
+                            🔒 Pagar R$ 39,90 via PagBank
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="pagbank-modal-footer">
+                <div class="pagbank-guarantee-badges">
+                    <span>🛡️ PagBank PagSeguro • Processamento Seguro SSL 256 bits</span>
+                    <span>🔄 Garantia de 7 dias ou seu dinheiro de volta</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         RODAPÉ INSTITUCIONAL E CONFORMIDADE DE E-COMMERCE (PAGBANK & DECRETO 7.962)
+    ========================================================================= -->
+    <footer class="app-footer">
+        <div class="footer-container">
+            <!-- Linha 1: Dados do Comerciante / Titular Oficial -->
+            <div class="footer-merchant-grid">
+                <div class="footer-merchant-block">
+                    <strong class="footer-block-title">Identificação do Prestador</strong>
+                    <p class="footer-merchant-name"><strong>walace mendes</strong></p>
+                    <p class="footer-merchant-sub">Responsável Técnico: Walace Mendes dos Santos</p>
+                    <p class="footer-merchant-tax">CPF/CNPJ: <strong>118.002.337-44</strong></p>
+                    <p class="footer-merchant-address">Av. das Américas, 3500 - Barra da Tijuca, Rio de Janeiro - RJ, CEP 22640-102</p>
+                </div>
+
+                <div class="footer-merchant-block">
+                    <strong class="footer-block-title">Atendimento &amp; Suporte</strong>
+                    <p class="footer-contact-item">📧 <a href="mailto:lacee.mds@gmail.com">lacee.mds@gmail.com</a></p>
+                    <p class="footer-contact-item">📱 WhatsApp: <a href="https://api.whatsapp.com/send?phone=5521982212654" target="_blank">+55 (21) 98221-2654</a></p>
+                    <p class="footer-contact-item">🕒 Horário: Segunda a Sexta das 08h às 18h</p>
+                </div>
+
+                <div class="footer-merchant-block">
+                    <strong class="footer-block-title">Políticas e Diretrizes Legais</strong>
+                    <ul class="footer-legal-links">
+                        <li><a href="javascript:void(0)" onclick="openLegalModal('privacyModal')">🛡️ Política de Privacidade (LGPD)</a></li>
+                        <li><a href="javascript:void(0)" onclick="openLegalModal('termsModal')">📜 Termos e Condições de Uso</a></li>
+                        <li><a href="javascript:void(0)" onclick="openLegalModal('refundModal')">🔄 Política de Reembolso (CDC Art. 49)</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-merchant-block">
+                    <strong class="footer-block-title">Meios de Pagamento &amp; Segurança</strong>
+                    <div class="footer-badges-flow">
+                        <span class="badge-payment">PagBank</span>
+                        <span class="badge-payment">PIX Instantâneo</span>
+                        <span class="badge-payment">Visa</span>
+                        <span class="badge-payment">Mastercard</span>
+                        <span class="badge-payment">Elo</span>
+                        <span class="badge-payment">Hipercard</span>
+                    </div>
+                    <div class="footer-ssl-badge">
+                        🔒 Conexão Segura SSL/TLS 256 bits • PagSeguro Internet S.A.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Linha 2: A ÚNICA MENÇÃO OFICIAL INSTITUCIONAL A SBIM / PNI (Conforme solicitado) -->
+            <div class="footer-scientific-note">
+                Orientações técnico-científicas referenciadas nos calendários oficiais da <strong>Sociedade Brasileira de Imunizações (SBIm)</strong> e do <strong>Programa Nacional de Imunizações (PNI/SUS)</strong>.
+            </div>
+
+            <!-- Linha 3: Direitos Autorais -->
+            <div class="footer-copyright-bar">
+                <p>&copy; 2026 <strong>walace mendes</strong> • Todos os direitos reservados. Plataforma de Triagem e Apoio Clínico à Imunização.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "guiavacinal",
+  "version": "1.0.0",
+  "description": "Portal de Decisão Clínica e Prescrição Farmacêutica em Imunizações (SBIm / PNI)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["vacina", "sbim", "farmacia", "sus", "ubs"],
+  "author": "Guia Vacinal",
+  "license": "MIT"
+}
