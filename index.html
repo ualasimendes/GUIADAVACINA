@@ -632,6 +632,7 @@
                         <!-- Botão Oficial Google OAuth Único -->
                         <div class="google-oauth-action-area">
                             <div id="gsiButtonWrapper" class="gsi-button-slot">
+                                <div id="gsiOfficialRenderSlot" class="gsi-official-slot"></div>
                                 <button type="button" class="btn-google-native-login" id="btnGoogleNativeAction" onclick="triggerGoogleLoginFlow()">
                                     <svg class="google-icon-svg" viewBox="0 0 24 24" width="20" height="20">
                                         <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
@@ -648,6 +649,8 @@
                             <span>ou continue com seus dados de e-mail</span>
                         </div>
 
+                        <div id="googleAuthOriginNotice" class="google-auth-origin-notice" style="display: none;"></div>
+
                         <form id="formGoogleStep1" onsubmit="handleGoogleStep1Submit(event)" class="google-manual-form">
                             <div class="form-group">
                                 <label for="step1GoogleEmail">E-mail da Conta Google <span class="req-star">*</span></label>
@@ -662,6 +665,12 @@
                             <button type="submit" class="btn-google-sign-in-action" id="btnContinueWithGoogle">
                                 <span>Prosseguir para Escolha do Perfil →</span>
                             </button>
+
+                            <div style="text-align: center; margin-top: 0.85rem;">
+                                <button type="button" class="btn-demo-quick-link" onclick="fillDemoGoogleAccount()" style="background: none; border: none; color: #2563eb; font-size: 0.82rem; cursor: pointer; text-decoration: underline; padding: 4px 8px;">
+                                    ⚡ Entrar rápido com perfil de demonstração (Dr. Walace Mendes)
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>

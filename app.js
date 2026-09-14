@@ -3841,7 +3841,8 @@ function handleBasketModalBackdropClick(e) {
 // MÉTODOS DE GERENCIAMENTO DE AUTENTICAÇÃO GOOGLE EM 3 ETAPAS
 // =========================================================================
 
-let googleClientId = '';
+const DEFAULT_GOOGLE_CLIENT_ID = '986855077085-n9sgr3399521gfo9mc5h1lggjvj3gbnt.apps.googleusercontent.com';
+let googleClientId = DEFAULT_GOOGLE_CLIENT_ID;
 
 function parseJwt(token) {
     if (!token) return null;
@@ -3869,7 +3870,7 @@ async function initGoogleAuth() {
             }
         }
     } catch (err) {
-        console.warn('Configuração de cliente Google não pôde ser obtida:', err);
+        // Ambiente estático (ex: GitHub Pages), mantém DEFAULT_GOOGLE_CLIENT_ID
     }
 
     // Inicializar Google Identity Services (GIS) caso a biblioteca esteja pronta
@@ -3906,17 +3907,26 @@ function setupGoogleIdentityServices() {
             cancel_on_tap_outside: true
         });
 
-        const btnSlot = document.getElementById('gsiButtonWrapper');
-        if (btnSlot) {
-            btnSlot.innerHTML = '';
-            window.google.accounts.id.renderButton(btnSlot, {
+        const officialSlot = document.getElementById('gsiOfficialRenderSlot');
+        if (officialSlot) {
+            officialSlot.innerHTML = '';
+            window.google.accounts.id.renderButton(officialSlot, {
                 theme: 'outline',
                 size: 'large',
                 type: 'standard',
                 text: 'continue_with',
                 shape: 'rectangular',
-                locale: 'pt-BR'
+                locale: 'pt-BR',
+                width: 320
             });
+
+            // Se o botão oficial for renderizado pelo Google com sucesso, oculta o botão customizado
+            setTimeout(() => {
+                if (officialSlot.children && officialSlot.children.length > 0) {
+                    const nativeBtn = document.getElementById('btnGoogleNativeAction');
+                    if (nativeBtn) nativeBtn.style.display = 'none';
+                }
+            }, 350);
         }
     } catch (e) {
         console.warn('Erro ao inicializar GIS:', e);
@@ -4071,8 +4081,70 @@ function processVerifiedGoogleIdentity(email, name, picture) {
     goToGoogleStep(2);
 }
 
+function showGoogleOriginNotice() {
+    const noticeEl = document.getElementById('googleAuthOriginNotice');
+    if (noticeEl) {
+        noticeEl.style.display = 'block';
+        noticeEl.innerHTML = `
+            <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--text-primary, #1e293b); margin: 10px 0 14px 0; text-align: left; line-height: 1.45;">
+                <div style="font-weight: 600; color: #b45309; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                    <span>⚠️</span> Orientação para o Domínio Personalizado
+                </div>
+                <div>Para o pop-up nativo do Google abrir diretamente no domínio <strong>${window.location.host}</strong>, cadastre <code>${window.location.origin}</code> nas <em>Origens JavaScript Autorizadas</em> no painel do <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;">Google Cloud Console</a>.</div>
+                <div style="margin-top: 6px; font-weight: 500; color: #047857;">👉 Você pode prosseguir agora mesmo informando seu e-mail e nome nos campos abaixo:</div>
+            </div>
+        `;
+    }
+}
+
 async function triggerGoogleLoginFlow() {
-    // 1. Tentar fluxo oficial de popup se houver URL disponível no servidor
+    // 1. Tentar OAuth2 Token Client client-side (oficial do Google Identity Services para Web/SPA)
+    if (window.google && window.google.accounts && window.google.accounts.oauth2 && googleClientId) {
+        try {
+            const tokenClient = window.google.accounts.oauth2.initTokenClient({
+                client_id: googleClientId,
+                scope: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid',
+                prompt: 'select_account',
+                callback: async (tokenResponse) => {
+                    if (tokenResponse && tokenResponse.error) {
+                        console.warn('Google OAuth Token error:', tokenResponse.error);
+                        if (tokenResponse.error !== 'access_denied') {
+                            showGoogleOriginNotice();
+                        }
+                        return;
+                    }
+                    if (tokenResponse && tokenResponse.access_token) {
+                        try {
+                            const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                                headers: { 'Authorization': `Bearer ${tokenResponse.access_token}` }
+                            });
+                            const profile = await res.json();
+                            if (profile && profile.email) {
+                                processVerifiedGoogleIdentity(
+                                    profile.email,
+                                    profile.name || profile.given_name || profile.email.split('@')[0],
+                                    profile.picture || ''
+                                );
+                                return;
+                            }
+                        } catch (err) {
+                            console.warn('Erro ao consultar perfil Google:', err);
+                        }
+                    }
+                },
+                error_callback: (err) => {
+                    console.warn('Erro no Google OAuth Token Client:', err);
+                    showGoogleOriginNotice();
+                }
+            });
+            tokenClient.requestAccessToken({ prompt: 'select_account' });
+            return;
+        } catch (e) {
+            console.warn('Erro ao disparar initTokenClient:', e);
+        }
+    }
+
+    // 2. Tentar fluxo oficial de popup via servidor se houver endpoint ativo (ex: AI Studio)
     try {
         const resp = await fetch('/api/auth/google/url');
         if (resp.ok) {
@@ -4091,16 +4163,20 @@ async function triggerGoogleLoginFlow() {
             }
         }
     } catch (e) {
-        console.warn('Erro ao chamar endpoint de URL Google:', e);
+        // Silencioso em ambiente estático
     }
 
-    // 2. Se GIS estiver inicializado, tentar prompt
+    // 3. Se GIS estiver inicializado, tentar prompt One Tap
     if (window.google && window.google.accounts && window.google.accounts.id && googleClientId) {
-        window.google.accounts.id.prompt();
-        return;
+        try {
+            window.google.accounts.id.prompt();
+        } catch (e) {
+            console.warn('Erro no prompt GIS:', e);
+        }
     }
 
-    // 3. Fallback inteligente: focar o campo de e-mail e nome com instrução clara
+    // 4. Fallback inteligente: exibir aviso se aplicável e focar no campo de e-mail e nome
+    showGoogleOriginNotice();
     const emailInput = document.getElementById('step1GoogleEmail');
     if (emailInput) {
         emailInput.focus();
